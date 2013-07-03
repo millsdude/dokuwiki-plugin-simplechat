@@ -1,0 +1,10 @@
+#sc-wrap { width: 600px; margin: 10px auto; position: relative; background-color: #ddd; padding: 10px;}
+#sc-chatframe { border: 1px solid #eee; margin: 0 0 15px 0; }
+#sc-chatarea { height: 300px; overflow: auto; border: 1px solid #666; padding: 20px; background:white; }
+#sc-chatarea p { padding:2px; padding-left:100px; margin: 0; line-height: 1em; border-bottom: 1px dotted #ccc; }
+#sc-chatarea p span { font-weight: bold; margin-left: -100px; display:block; float:left; padding-right: 1em; }
+#sc-chatarea .sc-info{ font-style: italic; color: blue; padding-left: 0;  };
+#sc-name { position:absolute; top:0; right:0; font: bold 12px "Lucida Grande", Sans-Serif; text-align: right; z-index:1; }   
+#sc-name span { color: #fa9f00; }
+#sc-messagearea p { float: left; margin-top: 12px;  font-size: 18px; }
+#sc-send { resize: none; border: 3px solid #999; width: 400px; height: 2em;padding: 10px; font: 12px "Lucida Grande", Sans-Serif; float: right; }
