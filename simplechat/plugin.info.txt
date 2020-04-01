@@ -1,7 +1,0 @@
-base   simplechat
-author Matthew Mills
-email  millsm@csus.edu
-date   2013-06-22
-name   simplechat plugin
-desc   Provides simple chat window using ajax
-url    http://www.csus.edu

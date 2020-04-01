@@ -9,27 +9,27 @@ function startsWith($haystack, $needle)
     return !strncmp($haystack, $needle, strlen($needle));
 }
 	$result="";
-	$cmd = $_GET['cmd'];
-	$room = str_replace(array(' ','.','/',':'),array('','','-','-'),$_GET['room']); // need to clean this. remove spaces, remove dots , change slashes to underlines
+	$cmd = $_POST['cmd'];
+	$room = str_replace(array(' ','.','/',':'),array('','','-','-'),$_POST['room']); // need to clean this. remove spaces, remove dots , change slashes to underlines
 	$filename = DOKU_INC.'data/chats/log_'.$room.'.txt';
 	switch( $cmd ){
 	case 'send':// got a message from user
-		$msg = str_replace( array("\r","\n"), '\r', trim($_GET['msg']) );
+		$msg = str_replace( array("\r","\n"), '\r', trim($_POST['msg']) );
 		if( strlen($msg) > 0 ) {
 			// here is where you check for special commands
 			$newmsgline = "";
 			if( startsWith($msg,"/" )) {
 				if( startsWith( $msg, "/me ") ) {
-					$newmsgline = ".\t&laquo;".htmlspecialchars($_GET['user'])." ".htmlspecialchars( substr( $msg , 4) )."&raquo;\n";
+					$newmsgline = ".\t&laquo;".htmlspecialchars($_POST['user'])." ".htmlspecialchars( substr( $msg , 4) )."&raquo;\n";
 				} elseif ( startsWith( $msg, "/time") ){
 					$newmsgline = ".\t&laquo;Current server time is ".date('Y-m-d H:i:s')." [".date_default_timezone_get()."]&raquo;\n";
 				} elseif ( startsWith( $msg, "/flip") ){
 					$coin = array("heads","tails");
-					$newmsgline = ".\t&laquo;".htmlspecialchars($_GET['user'])." flips a coin. It is ".$coin[rand(0,1)]."&raquo;\n";
+					$newmsgline = ".\t&laquo;".htmlspecialchars($_POST['user'])." flips a coin. It is ".$coin[rand(0,1)]."&raquo;\n";
 				} elseif ( startsWith( $msg, "/roll") ){
 					$dicesides = intval(substr( $msg , 6 )); 
 					if( $dicesides < 2 ) { $dicesides = 100; }
-					$newmsgline = ".\t&laquo;".htmlspecialchars($_GET['user'])." rolls a ".rand(1,$dicesides)." out of ".$dicesides."&raquo;\n";
+					$newmsgline = ".\t&laquo;".htmlspecialchars($_POST['user'])." rolls a ".rand(1,$dicesides)." out of ".$dicesides."&raquo;\n";
 				} else {
 					$result = "Commands:<br>";
 					$result .= "/me action - emote an action. (/me smiles)<br>";
@@ -39,7 +39,7 @@ function startsWith($haystack, $needle)
 				}
 			} else {
 				// store the user and message in tab separated text columns. prevent HTML injection
-				$newmsgline = htmlspecialchars($_GET['user'])."\t".htmlspecialchars($msg)."\n";
+				$newmsgline = htmlspecialchars($_POST['user'])."\t".htmlspecialchars($msg)."\n";
 			}
 			if( $newmsgline != "" ) {
 				$fh = fopen($filename,'a+');
@@ -54,7 +54,7 @@ function startsWith($haystack, $needle)
 	case 'update': // give us lines after previous count, and the new count
 		$linecount = 0;
 		$result = "";
-		$startline = $_GET['start'];
+		$startline = $_POST['start'];
 		$fh = @fopen( $filename, "r" );
 		if( $fh ) {
 			while(!feof($fh)){
@@ -71,13 +71,13 @@ function startsWith($haystack, $needle)
 		$result .= (string)($linecount-1); // last line in response is the new current count
 		break;
 	case 'entered': // someone entered the chat room.
-		$newmsgline = ".\t".htmlspecialchars($_GET['user'])." entered the chat.\n";
+		$newmsgline = ".\t".htmlspecialchars($_POST['user'])." entered the chat.\n";
 		$fh = fopen($filename,'a+');
 		fwrite( $fh , $newmsgline );
 		fclose($fh );
 		break;
 	case 'exited': // someone left the chat room.
-		$newmsgline = ".\t".htmlspecialchars($_GET['user'])." left the chat.\n";
+		$newmsgline = ".\t".htmlspecialchars($_POST['user'])." left the chat.\n";
 		$fh = fopen($filename,'a+');
 		fwrite( $fh , $newmsgline );
 		fclose($fh );

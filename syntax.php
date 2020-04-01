@@ -7,27 +7,16 @@
  */
 
 // must be run within Dokuwiki
-if (!defined('DOKU_INC')) die();
+if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../').'/');
+if(!defined('DOKU_PLUGIN')) define('DOKU_PLUGIN',DOKU_INC.'lib/plugins/');
 
+require_once(DOKU_PLUGIN.'syntax.php');
 class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
-    /**
-     * @return string Syntax mode type
-     */
-    public function getType() {
-        return 'substition';
-    }
-    /**
-     * @return string Paragraph type
-     */
-    public function getPType() {
-        return 'block';
-    }
-    /**
-     * @return int Sort order - Low numbers go before high numbers
-     */
-    public function getSort() {
-        return 155;
-    }
+
+    function getType(){ return 'protected'; }
+    function getAllowedTypes() { return array('substition','protected','disabled','formatting'); }
+    function getSort(){ return 315; }
+    function getPType(){ return 'block'; }
 
     /**
      * Connect lookup pattern to lexer.
@@ -39,18 +28,17 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
     }
 
 	private function chatroomform() {
-	global $INFO;
+        global $USERINFO, $ID;
 		$result  = "";
 		$result .= "<div id='sc-wrap'>";
-		// $result .= "<h2>Simple Chat</h2>";
-		if( isset($INFO['userinfo'] ) || ($this->getConf('showanonymousip') == 1)) {
-			$result .= "<input type='hidden' id='sc-username' value='".$INFO['client']."'>";
+		if( isset($USERINFO['name'] ) || ($this->getConf('showanonymousip') == 1)) {
+			$result .= "<input type='hidden' id='sc-username' value='".$USERINFO['name']."'>";
 		} else {
 			$result .= "<input type='hidden' id='sc-username' value='anonymous'>";
 		}
-		$result .= "<input type='hidden' id='sc-roomname' value='".$INFO['id']."'>";
+		$result .= "<input type='hidden' id='sc-roomname' value='".$ID."'>";
 		$result .= "<div id='sc-chatframe'><div id='sc-chatarea'></div></div>";
-		$result .= "<form id='sc-messagearea'><textarea id='sc-send' maxlength = '250'></textarea><p>Your message:</p></form>";
+		$result .= "<form id='sc-messagearea'><label for='sc-send'>Message</label><textarea id='sc-send' maxlength = '250'></textarea></form>";
 		$result .= "</div><br style='clear:both;'>";
 		return $result;
 	}
@@ -64,9 +52,8 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
      * @param Doku_Handler    $handler The handler
      * @return array Data for the renderer
      */
-    public function handle($match, $state, $pos, &$handler){
-        $data = array();
-        return $data;
+    public function handle($match, $state, $pos, Doku_Handler $handler){
+        return array();
     }
 
     /**
@@ -77,9 +64,8 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
      * @param array          $data      The data from the handler() function
      * @return bool If rendering was successful.
      */
-    public function render($mode, &$renderer, $data) {
-	global $INFO;
-	global $conf;
+    public function render($mode, Doku_Renderer $renderer, $data) {
+        global $conf, $USERINFO, $ID;
 	
         if($mode != 'xhtml') return false;
 		// check to see if chat directory is created
@@ -89,7 +75,7 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
 		}
 		// see if we need to clean up an old chat log
 		if( $this->getConf('chatretentiontimer') > 0 ) {
-			$room = str_replace(array(' ','.','/',':'),array('','','-','-'),$INFO['id']); // need to clean this. remove spaces, remove dots , change slashes to underlines
+			$room = str_replace(array(' ','.','/',':'),array('','','-','-'),$ID); // need to clean this. remove spaces, remove dots , change slashes to underlines
 			$filename = DOKU_INC.'data/chats/log_'.$room.'.txt';
 			if( file_exists( $filename ) ) {
 				// count lines, see if we are over limit
