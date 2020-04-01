@@ -54,13 +54,19 @@ function startsWith($haystack, $needle)
 	case 'update': // give us lines after previous count, and the new count
 		$linecount = 0;
 		$result = "";
-		$startline = $_POST['start'];
+    $startline = $_POST['start'];
+    $prevline = "";
 		$fh = @fopen( $filename, "r" );
 		if( $fh ) {
 			while(!feof($fh)){
 				$line = fgets($fh);
-				if( $linecount >= $startline ) $result .=  $line;
-				$linecount++;
+        if( $linecount >= $startline ) {
+          if ($prevline != $line) { 
+            $result .=  $line;
+          }
+        }
+        $linecount++;
+        $prevline = $line;
 			}
 			fclose($fh);
 			if( $startline > $linecount ) {

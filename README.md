@@ -14,8 +14,7 @@ on how to install plugins in DokuWiki.
 
 Notes
 ======
- Messages are stored in files.
- Therefore, using this plugin could require a logrotate on `data/chats/log_*`.
+ Messages are stored in files `data/chats/log_*`.
 
 
 ```

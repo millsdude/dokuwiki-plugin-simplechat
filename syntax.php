@@ -29,17 +29,17 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
 
 	private function chatroomform() {
         global $USERINFO, $ID;
-		$result  = "";
-		$result .= "<div id='sc-wrap'>";
-		if( isset($USERINFO['name'] ) || ($this->getConf('showanonymousip') == 1)) {
-			$result .= "<input type='hidden' id='sc-username' value='".$USERINFO['name']."'>";
-		} else {
-			$result .= "<input type='hidden' id='sc-username' value='anonymous'>";
-		}
-		$result .= "<input type='hidden' id='sc-roomname' value='".$ID."'>";
+		if ( isset($USERINFO['name'] ) || ($this->getConf('showanonymousip') == 1)) {
+            $username = $USERINFO['name'];
+        } else {
+            $username = 'anonymous';
+        }
+        $result .= "<div id='sc-wrap' data-user='".$username."' data-room='".$ID."'>";
+        $result .= "<label for='sc-activate'>Chat</label>";
+		$result .= "<input id='sc-activate' name='sc-activate' type='checkbox'/>";
 		$result .= "<div id='sc-chatframe'><div id='sc-chatarea'></div></div>";
-		$result .= "<form id='sc-messagearea'><label for='sc-send'>Message</label><textarea id='sc-send' maxlength = '250'></textarea></form>";
-		$result .= "</div><br style='clear:both;'>";
+		$result .= "<form id='sc-messagearea'><label for='sc-send'>Message</label><textarea id='sc-send' maxlength='250'></textarea></form>";
+		$result .= "</div>";
 		return $result;
 	}
 	
