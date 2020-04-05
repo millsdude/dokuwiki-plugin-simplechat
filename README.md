@@ -9,6 +9,17 @@ If you install this plugin manually, make sure it is installed in
 lib/plugins/simplechat/ - if the folder is called different it
 will not work!
 
+
+To add the element :
+```
+~~simplechat~~
+```
+
+To have more dynamic page reload:
+```
+~~NOCACHE~~
+```
+
 Please refer to http://www.dokuwiki.org/plugins for additional info
 on how to install plugins in DokuWiki.
 

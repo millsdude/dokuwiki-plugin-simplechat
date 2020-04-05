@@ -8,5 +8,6 @@
 $conf['chatretentiontimer']  = '30';
 $conf['savelogsflag'] = 1;
 $conf['maxloglinecount'] = 2000;
+$conf['groups'] = 'user';
 $conf['showanonymousip'] = 0;
 
