@@ -1,15 +1,15 @@
-#sc-wrap { margin: 0.3em auto 2em; position: relative; background-color: #ddd; padding: 0.3em;}
-#sc-activate { opacity: 0; position: absolute; z-index: -1; }
-#sc-activate:not(:checked) ~ * { overflow:hidden; height:0; padding:0 }
-label[for="sc-activate"] { display: block; text-align:center; width:100%; margin:auto; padding:0 }
-#sc-chatframe { border: 1px solid #eee; margin: 0 0 1.1em 0; }
-#sc-chatarea { height: 200px; overflow: auto; border: 1px solid #666; padding: 20px; background:white; }
-#sc-chatarea p { padding:2px; padding-left:30%; margin: 0; line-height: 1em; }
-#sc-chatarea p:not(.sc-info) { border-bottom: 1px dotted #ccc; }
-#sc-chatarea p span { font-weight: bold; margin-left: -43.3%; width:43.3%; display:inline-block; }
-#sc-chatarea .sc-info{ font-style: italic; color: #999; padding-left: 0; font-size:0.8em; text-align:right;};
-#sc-name { position:absolute; top:0; right:0; font: bold 12px "Lucida Grande", Sans-Serif; text-align: right; z-index:1; }   
-#sc-name span { color: #fa9f00; }
-#sc-messagearea { display:flex;}
-#sc-messagearea * { padding: 0.3em; }
-#sc-send { position:relative; width:100%; resize:vertical; min-height:2.2em; height:2.2em; border: 2px solid #999; font: 12px "Lucida Grande", Sans-Serif;}
+.sc-wrap { margin: 0.3em auto 2em; position: relative; background-color: #ddd; padding: 0.3em;}
+.sc-activate { opacity: 0; position: absolute; z-index: -1; }
+.sc-activate:not(:checked) ~ * { overflow:hidden; height:0; padding:0 }
+label[for^="sc-activate-"] { display: block; text-align:center; width:100%; margin:auto; padding:0 }
+.sc-chatframe { border: 1px solid #eee; margin: 0 0 1.1em 0; }
+.sc-chatarea { height: 200px; overflow: auto; border: 1px solid #666; padding: 20px; background:white; }
+.sc-chatarea p { padding:2px; padding-left:30%; margin: 0; line-height: 1em; }
+.sc-chatarea p:not(.sc-info) { border-bottom: 1px dotted #ccc; }
+.sc-chatarea p span { font-weight: bold; margin-left: -43.3%; width:43.3%; display:inline-block; }
+.sc-chatarea .sc-info{ font-style: italic; color: #999; padding-left: 0; font-size:0.8em; text-align:right;};
+.sc-name { position:absolute; top:0; right:0; font: bold 12px "Lucida Grande", Sans-Serif; text-align: right; z-index:1; }   
+.sc-name span { color: #fa9f00; }
+.sc-wrap .sc-messagearea { display:flex;}
+.sc-wrap .sc-messagearea * { padding: 0.3em; }
+.sc-send { position:relative; width:100%; resize:vertical; min-height:2.2em; height:2.2em; border: 2px solid #999; font: 12px "Lucida Grande", Sans-Serif;}
