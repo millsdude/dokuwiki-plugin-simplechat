@@ -4,7 +4,8 @@ jQuery(document).ready(function(){
   var $sc_activated = {};
   var $sc_loop = {};
   var $sc_user = jQuery('.sc-wrap');
-  var $period = 5000;
+  var $sc_period = 5000;
+  var $sc_osc = undefined;
 
   function _sendmsg_(room, user, cmd, cb, msg, complete){
     if (!$sc_activated[room]) return;
@@ -24,6 +25,32 @@ jQuery(document).ready(function(){
     });
   };
 
+  function unmute(){
+    $sc_osc = {};
+    $sc_osc.a = new(window.AudioContext || window.webkitAudioContext)();
+    $sc_osc.o = $sc_osc.a.createOscillator();
+    $sc_osc.g = $sc_osc.a.createGain();
+    $sc_osc.o.type = 'sine';
+    $sc_osc.g.gain.value = 0;
+    $sc_osc.o.frequency.value = 440;
+    $sc_osc.g.connect($sc_osc.a.destination);
+    $sc_osc.o.connect($sc_osc.g);
+    $sc_osc.t = 400; // duration
+    $sc_osc.f = 329; // frequency
+    $sc_osc.p = function (id) {
+      $cur_time = Math.floor(2 + ($sc_osc.a.currentTime*10))/10;
+      $sc_osc.o.frequency.value = $sc_osc[id] || $sc_osc.f;
+      $cur_attack = [0.5,0.5,0.4,0.35,0.12,0];
+      $sc_osc.g.gain.setValueCurveAtTime($cur_attack.map(function(x){
+        return x*(440/$sc_osc.o.frequency.value);
+      }), $cur_time, $sc_osc.t/1000);
+    };
+    $sc_osc.o.start();
+  }
+  function mute(){
+    $sc_osc.o.stop();
+    $sc_osc = undefined;
+  }
   jQuery('body').on('change', 'input.sc-activate', function() {
     var room = jQuery(this).parent().data('room');
     if (this.checked && !$sc_activated[room]){
@@ -62,6 +89,7 @@ jQuery(document).ready(function(){
               jQuery('<style id="'+cls+'-css">.'+ cls + " {" + $mycss[1] + "}</style>").appendTo('head');
             } else {
               $mydiv.append("<p class='sc-player-"+$msgname.split(/[^A-Za-z0-9]/).join('')+"'><span>"+$msgname+"</span>"+$msginfo+"</p>");
+              if ($sc_osc) $sc_osc.p($msgname);
             }
             $msgs.shift();
           }
@@ -74,9 +102,19 @@ jQuery(document).ready(function(){
           var $mymsg = this.value.replace(/^\s+|\s+$/g,'');
           if( $mymsg.length > 0 ) {
             if ($mymsg == '/fast') {
-              $period=1000;
+              $sc_period=1000;
             } else if ($mymsg == '/slow') {
-              $period=5000;
+              $sc_period=5000;
+            } else if ($mymsg == '/unmute') {
+              unmute();
+              $sc_osc.p();
+            } else if ($sc_osc && $mymsg == '/mute') {
+              mute();
+            } else if ($sc_osc && $mymsg.startsWith('/tune')) {
+              t = $mymsg.substr(6).split(' ');
+              if (t.length == 1) $sc_osc.f = parseFloat(t[0]) || 440;
+              else if (t.length == 2) $sc_osc[t[0]] = parseFloat(t[1]) || 440;
+              $sc_osc.p();
             } else if ($mymsg.startsWith('/font ')) {
               font = $mymsg.substr(6);
               jQuery('#sc-chatarea-'+scid).css('font-family', font);
@@ -86,7 +124,7 @@ jQuery(document).ready(function(){
             } else {
               _sendmsg_(room, user, 'send', sc_add_msg, $mymsg);
               clearInterval($sc_loop[room]);
-              run_loop();
+              refresh();
             }
           }
           this.value = "";
@@ -96,17 +134,17 @@ jQuery(document).ready(function(){
 
         // if ($sc_loop[room]) clearInterval($sc_loop[room]);
 
-      function run_loop(){
+      function refresh(){
         $sc_loop[room] = setInterval(function(){
           if( ($sc_semaphore[room] || 0) >= 0 && jQuery('#sc-chatarea-'+scid+':hover').length == 0) {
             $sc_semaphore[room]--;
             _sendmsg_(room, user, 'update', sc_add_msg,
               undefined , function( data ) { $sc_semaphore[room] = ($sc_semaphore[room]||0) + 1; });
           }
-        }, $period);
+        }, $sc_period);
       }
 
-      _sendmsg_(room, user, 'entered', sc_add_msg, undefined, run_loop);
+      _sendmsg_(room, user, 'entered', sc_add_msg, undefined, refresh);
     }
   });
 

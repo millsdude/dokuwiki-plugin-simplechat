@@ -46,6 +46,13 @@ function plugin_simplechat_parse_cmd($msg){
       $directmsg .= "/flip - user flips a coin.<br>";
       $directmsg .= "/roll # - user rolls a # sided dice (defaults 100).<br>";
       $directmsg .= "/color fg bg - set color in chat.<br>";
+      $directmsg .= "<br>";
+      $directmsg .= "Following ones are specific to the chat client:<br>";
+      $directmsg .= "/fast - enable a faster chat update<br>";
+      $directmsg .= "/slow - disable faster chat update<br>";
+      $directmsg .= "/unmute - enable sound notification<br>";
+      $directmsg .= "/mute - disable sound notification<br>";
+      $directmsg .= "/tune [name] 220 - change freq of the sound notification<br>";
     }
     $msg = '';
   }
