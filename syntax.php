@@ -13,10 +13,10 @@ require_once(DOKU_INC.'inc/auth.php');
 require_once(DOKU_PLUGIN.'syntax.php');
 class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
 
-    function getType(){ return 'protected'; }
     function getAllowedTypes() { return array('substition','protected','disabled','formatting'); }
-    function getSort(){ return 315; }
+    function getType(){ return 'protected'; }
     function getPType(){ return 'block'; }
+    function getSort(){ return 315; }
 
     /**
      * Connect lookup pattern to lexer.
@@ -25,23 +25,7 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
      */
     public function connectTo($mode) {
         $this->Lexer->addSpecialPattern('~~simplechat~~',$mode,'plugin_simplechat');
-    }
-
-    private function chatroomform() {
-        global $USERINFO, $ID;
-        $scid = bin2hex(random_bytes(8));
-        if (isset($USERINFO['name']) || ($this->getConf('showanonymousip') == 1)) {
-            $username = $USERINFO['name'];
-        } else {
-            $username = 'anonymous';
-        }
-        $result .= "<div id='sc-wrap-".$scid."' class='sc-wrap' data-id='".$scid."' data-user='".$username."' data-room='".$ID."'>";
-        $result .= "<label for='sc-activate-".$scid."'>Chat</label>";
-        $result .= "<input id='sc-activate-".$scid."'  class='sc-activate' name='sc-activate-".$scid."' type='checkbox'/>";
-        $result .= "<div class='sc-chatframe'><div class='sc-chatarea' id='sc-chatarea-".$scid."'></div></div>";
-        $result .= "<form class='sc-messagearea'><label for='sc-send-".$scid."'>Message</label><textarea  class='sc-send' id='sc-send-".$scid."' maxlength='250'></textarea></form>";
-        $result .= "</div>";
-        return $result;
+        $this->Lexer->addSpecialPattern('\{\{simplechat>[^}]*\}\}',$mode,'plugin_simplechat');
     }
 
     /**
@@ -54,7 +38,22 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
      * @return array Data for the renderer
      */
     public function handle($match, $state, $pos, Doku_Handler $handler){
-        return array();
+        $match = substr($match,13,-2); //strip markup from start and end
+        $data = array();
+        foreach(explode('|',$match) as $param){
+            if (strlen($param) == 0) continue;
+            $splitparam = explode('=',$param,2);
+            $key = $splitparam[0];
+            $val = count($splitparam)==2 ? $splitparam[1]:Null;
+            if (is_null($val)) {
+                $data[$key] = true;
+            } elseif (isset($data[$key])){  // agregate with | for color in order to separate
+                $data[$key] .= ','.$val; 
+            } else {
+                $data[$key] = $val; 
+            }
+        }
+        return $data;
     }
 
     /**
@@ -113,9 +112,54 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
             }
         }
 
-        $renderer->doc .= $this->chatroomform();
+        $renderer->doc .= $this->chatroomform($data);
         return true;
     }
+
+    private function chatroomform($data) {
+        // e.g. {{simplechat>unfolded|fast|id=1|share=color,tune|title=Chat|unmuted|color=user1 red.vlam,user2 blue|tune=329,user1 440,user2 326}}
+        global $USERINFO, $ID;
+        $scid = bin2hex(random_bytes(8));
+        if (isset($USERINFO['name']) || ($this->getConf('showanonymousip') == 1)) {
+            $username = $USERINFO['name'];
+        } else {
+            $username = 'anonymous';
+        }
+        $fileid = $ID;
+        $divid = 'simplechat';
+        if (isset($data['id'])) {
+            $fileid .= '#'.$data['id'];
+            $divid = $data['id'];
+        }
+        $unmuted = (isset($data['unmuted']) ? (isset($data['tune']) ? $data['tune']:'t'):'');
+        $color = (isset($data['color']) ? (isset($data['color']) ? $data['color']:''): '');
+        $fast = (isset($data['fast']) ? (isset($data['fast']) ? 't':''):'');
+        if (isset($data['share'])){
+            $shareopts = explode(",", $data['share']);
+            $sharestyle = in_array('color', $shareopts) ? 't':'';
+            $sharetune = in_array('tune', $shareopts) ? 't':'';
+        } else {
+            $sharestyle = ''; $sharetune = '';
+        };
+        $result  = "";
+        $result .= "<div id='".$divid."' class='sc-wrap' data-sc='";
+        $result .= $scid."\t".$username."\t".$unmuted."\t".$sharetune."\t".$color."\t".$sharestyle."\t".$fast;
+        $result .= "' data-room='".$id."'";
+        $result .= ">";
+
+        $result .= "<label for='sc-activate-".$scid."'>".(isset($data['title'])?$data['title']:'Chat')."</label>";
+        $result .= "<input id='sc-activate-".$scid."'  class='sc-activate' name='sc-activate-".$scid."' type='checkbox'"; 
+        if (isset($data['unfolded'])) $result .= ' checked="checked"';
+        $result .= "/>";
+
+        $result .= "<div class='sc-chatframe'><div class='sc-chatarea' id='sc-chatarea-".$scid."'></div></div>";
+        $result .= "<form class='sc-messagearea'><label for='sc-send-".$scid."'>Message</label><textarea  class='sc-send' id='sc-send-".$scid."' maxlength='250'></textarea></form>";
+
+        $result .= "</div>";
+
+        return $result;
+    }
+
 }
 
 // vim:ts=4:sw=4:et:

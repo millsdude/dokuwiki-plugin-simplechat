@@ -65,14 +65,15 @@ switch( $_POST['cmd'] ){
 case 'send':// got a message from user
   $msg = str_replace( array("\r","\n"), '\r', trim($_POST['msg']) );
   if( strlen($msg) > 0 ) {
-    list($newmsg, $infomsg, $directmsg, $css) = plugin_simplechat_parse_cmd($msg);
+    list($newmsg, $infomsg, $directmsg, $colorstyle, $tune) = plugin_simplechat_parse_cmd($msg);
     if ($newmsg != "") {
       // store the user and message in tab separated text columns. prevent HTML injection
       simplechat_db::save_msg(htmlspecialchars($_POST['user'])."\t".htmlspecialchars($newmsg));
     }
     if( $infomsg != "" ) simplechat_db::save_msg(".\t".$infomsg);
     if( $directmsg != "" ) echo "_\t".$directmsg;
-    if( $css != "" ) simplechat_db::save_msg(":\t".preg_replace('/\W/', '', $_POST['user'])."\t".$css);
+    if( $colorstyle != "" ) simplechat_db::save_msg(":\t".preg_replace('/\W/', '', $_POST['user'])."\t".$colorstyle);
+    if( $tune != "" ) simplechat_db::save_msg("#\t".$tune);
   }
   echo simplechat_db::get_msgs($_POST['start']);
   break;

@@ -1,14 +1,18 @@
 jQuery(document).ready(function(){
-  var $sc_chatstatus = {};
-  var $sc_semaphore = {};
-  var $sc_activated = {};
-  var $sc_loop = {};
-  var $sc_user = jQuery('.sc-wrap');
-  var $sc_period = 5000;
-  var $sc_osc = undefined;
+  var $ScChatstatus = {};
+  var $ScSemaphore = {};
+  var $ScActivated = {};
+  var $ScLoop = {};
+  var $ScUser = jQuery('.sc-wrap');
+  var $ScPeriod = 5000;
+  var $ScOsc = {
+    t:400, // duration
+    f:329, // frequency
+    F:{}
+  };
 
-  function _sendmsg_(room, user, cmd, cb, msg, complete){
-    if (!$sc_activated[room]) return;
+  function ScMSG(room, user, cmd, cb, msg, complete){
+    if (!$ScActivated[room]) return;
     jQuery.ajax(DOKU_BASE + 'lib/plugins/simplechat/ajax.php', {
       method: 'post',
       error: function(err) {
@@ -17,64 +21,92 @@ jQuery(document).ready(function(){
       data: { cmd: cmd, msg: msg,
         room: room,
         user: user,
-        start: $sc_chatstatus[room] || 0,
+        start: $ScChatstatus[room] || 0,
         async: (cmd=='send' || cmd=='update') 
       },
       success: cb,
       complete: complete
     });
-  };
+  }
 
   function unmute(){
-    $sc_osc = {};
-    $sc_osc.a = new(window.AudioContext || window.webkitAudioContext)();
-    $sc_osc.o = $sc_osc.a.createOscillator();
-    $sc_osc.g = $sc_osc.a.createGain();
-    $sc_osc.o.type = 'sine';
-    $sc_osc.g.gain.value = 0;
-    $sc_osc.o.frequency.value = 440;
-    $sc_osc.g.connect($sc_osc.a.destination);
-    $sc_osc.o.connect($sc_osc.g);
-    $sc_osc.t = 400; // duration
-    $sc_osc.f = 329; // frequency
-    $sc_osc.p = function (id) {
-      $cur_time = Math.floor(2 + ($sc_osc.a.currentTime*10))/10;
-      $sc_osc.o.frequency.value = $sc_osc[id] || $sc_osc.f;
-      $cur_attack = [0.5,0.5,0.4,0.35,0.12,0];
-      $sc_osc.g.gain.setValueCurveAtTime($cur_attack.map(function(x){
-        return x*(440/$sc_osc.o.frequency.value);
-      }), $cur_time, $sc_osc.t/1000);
+    $ScOsc.a = new(window.AudioContext || window.webkitAudioContext)();
+    $ScOsc.o = $ScOsc.a.createOscillator();
+    $ScOsc.g = $ScOsc.a.createGain();
+    $ScOsc.o.type = 'sine';
+    $ScOsc.g.gain.value = 0;
+    $ScOsc.o.frequency.value = 440;
+    $ScOsc.g.connect($ScOsc.a.destination);
+    $ScOsc.o.connect($ScOsc.g);
+    $ScOsc.p = function (id) {
+      $CurTime = Math.floor(2 + ($ScOsc.a.currentTime*10))/10;
+      $ScOsc.o.frequency.value = $ScOsc.F[id] || $ScOsc.f;
+      $CurAttack = [0.3,0.4,0.3,0.2,0.1,0];
+      $ScOsc.g.gain.setValueCurveAtTime($CurAttack.map(function(x){
+        return x*(440/$ScOsc.o.frequency.value);
+      }), $CurTime, $ScOsc.t/1000);
     };
-    $sc_osc.o.start();
+    $ScOsc.o.start();
   }
   function mute(){
-    $sc_osc.o.stop();
-    $sc_osc = undefined;
+    $ScOsc.o.stop();
+    $ScOsc.p = undefined;
   }
-  jQuery('body').on('change', 'input.sc-activate', function() {
+
+  function tune(v){
+    v.split(',').forEach(function (vv){
+      var t = vv.split(' ');
+      if (t.length == 1) $ScOsc.f = parseFloat(t[0]) || 440;
+      else if (t.length == 2) $ScOsc.F[t[0]] = parseFloat(t[1]) || 440;
+    });
+  }
+
+  $classnames = {};
+  function color(v){
+    v.split(',').forEach(function (vv){
+      var t = vv.split(" "); var c, css='';
+      var cls='sc-player-'+t[0].split(/[^A-Za-z0-9]/).join('');
+      jQuery('#'+cls+'-css').remove();
+      if (/[#0-9a-z]*\.[a-z-]+/.test(t[1])){
+        c = t[1].split('.');
+      } else if (/[#0-9a-z]+( [#0-9a-z]+)?/.test(t[1])){
+        css = "background:"+(t.length>2?t[2]:'inherit')+";";
+        c = [t[1],''];
+      } else { 
+        c = [t[1],''];
+      }
+      $classnames[t[0]]=cls+' '+c[1];
+      jQuery('.'+cls).each(function(){
+        this.className = cls + ' ' + c[1];
+      });
+      if (c[0].length) css += "color:"+c[0]+" !important;";
+      jQuery('<style id="'+cls+'-css">.'+cls+"{"+css+"}</style>").appendTo('head');
+    });
+  }
+
+  function scActivate(){
     var room = jQuery(this).parent().data('room');
-    if (this.checked && !$sc_activated[room]){
-      var user = jQuery(this).parent().data('user');
-      var scid = jQuery(this).parent().data('id');
-      $sc_activated[room] = true;
+    if (this.checked && !$ScActivated[room]){
+      var [scid, user, tuning, shtune, coloring, shstyle, fast]  = jQuery(this).parent().data('sc').split('\t');
+      $ScActivated[room] = true;
 
       // setup unload to report user leaving chat
       jQuery(window).unload( function(){
-        _sendmsg_(room, user, 'exited');
+        ScMSG(room, user, 'exited');
       });
       jQuery(this).on('remove', function(){
-        _sendmsg_(room, user, 'exited');
-        $sc_activated[room] = false;
-        clearInterval($sc_loop[room]);
+        ScMSG(room, user, 'exited');
+        $ScActivated[room] = false;
+        clearInterval($ScLoop[room]);
       });
 
-      function sc_add_msg(data){
+      function ScAddMsg(data){
         if( data != "" ) {
           var $mydiv = jQuery('#sc-chatarea-'+scid);
-          // if ($mydiv.length == 0) { $sc_activated[room] = false; return; }
+          // if ($mydiv.length == 0) { $ScActivated[room] = false; return; }
           var $msgs = data.split("\n");
           if ($msgs.length > 1)
-            $sc_chatstatus[room] = $msgs.pop();
+            $ScChatstatus[room] = $msgs.pop();
           while( $msgs.length ) {
             var $msgname = $msgs[0].split("\t")[0];
             var $msginfo = $msgs[0].substr($msgname.length+1).replace(/\\r/g, '<br/>');
@@ -82,14 +114,14 @@ jQuery(document).ready(function(){
               $mydiv.append( "<p class='sc-info'>"+ $msginfo + "</p>");
             } else if ($msgname == '_') {
               $mydiv.append( "<p class='sc-system'>" + $msginfo + "</p>");
-            } else if ($msgname == ':') {
-              var $mycss = $msginfo.split("\t");
-              var cls='sc-player-'+$mycss[0];
-              jQuery('#'+cls+'-css').remove();
-              jQuery('<style id="'+cls+'-css">.'+ cls + " {" + $mycss[1] + "}</style>").appendTo('head');
+            } else if ($msgname == '#') { // read tuning
+              tune($msginfo);
+            } else if ($msgname == ':') { // read color infos 
+              color($msginfo, 1);
             } else {
-              $mydiv.append("<p class='sc-player-"+$msgname.split(/[^A-Za-z0-9]/).join('')+"'><span>"+$msgname+"</span>"+$msginfo+"</p>");
-              if ($sc_osc) $sc_osc.p($msgname);
+              cls =  $classnames[$msgname] ||( "sc-player-" + $msgname.split(/[^A-Za-z0-9]/).join('') );
+              $mydiv.append("<p class='"+cls+"'><span>"+$msgname+"</span>"+$msginfo+"</p>");
+              if ($ScOsc.p) $ScOsc.p($msgname);
             }
             $msgs.shift();
           }
@@ -102,19 +134,18 @@ jQuery(document).ready(function(){
           var $mymsg = this.value.replace(/^\s+|\s+$/g,'');
           if( $mymsg.length > 0 ) {
             if ($mymsg == '/fast') {
-              $sc_period=1000;
+              $ScPeriod=1000;
             } else if ($mymsg == '/slow') {
-              $sc_period=5000;
+              $ScPeriod=5000;
             } else if ($mymsg == '/unmute') {
               unmute();
-              $sc_osc.p();
-            } else if ($sc_osc && $mymsg == '/mute') {
+              $ScOsc.p();
+            } else if ($ScOsc.p && $mymsg == '/mute') {
               mute();
-            } else if ($sc_osc && $mymsg.startsWith('/tune')) {
-              t = $mymsg.substr(6).split(' ');
-              if (t.length == 1) $sc_osc.f = parseFloat(t[0]) || 440;
-              else if (t.length == 2) $sc_osc[t[0]] = parseFloat(t[1]) || 440;
-              $sc_osc.p();
+            } else if (!shtune && $mymsg.startsWith('/tune')) {
+              tune($mymsg.substr(6));
+            } else if (!shstyle && $mymsg.startsWith('/color')) {
+              color(user + ' ' + $mymsg.substr(7), 0);
             } else if ($mymsg.startsWith('/font ')) {
               font = $mymsg.substr(6);
               jQuery('#sc-chatarea-'+scid).css('font-family', font);
@@ -122,9 +153,12 @@ jQuery(document).ready(function(){
               font = $mymsg.substr(10);
               jQuery('#sc-chatarea-'+scid).css('font-size', parseInt(font));
             } else {
-              _sendmsg_(room, user, 'send', sc_add_msg, $mymsg);
-              clearInterval($sc_loop[room]);
+              ScMSG(room, user, 'send', ScAddMsg, $mymsg);
+              clearInterval($ScLoop[room]);
               refresh();
+            }
+            if ($ScOsc.p && $mymsg.startsWith('/tune')) {
+              $ScOsc.p();
             }
           }
           this.value = "";
@@ -132,20 +166,33 @@ jQuery(document).ready(function(){
         }
       });
 
-        // if ($sc_loop[room]) clearInterval($sc_loop[room]);
+        // if ($ScLoop[room]) clearInterval($ScLoop[room]);
 
       function refresh(){
-        $sc_loop[room] = setInterval(function(){
-          if( ($sc_semaphore[room] || 0) >= 0 && jQuery('#sc-chatarea-'+scid+':hover').length == 0) {
-            $sc_semaphore[room]--;
-            _sendmsg_(room, user, 'update', sc_add_msg,
-              undefined , function( data ) { $sc_semaphore[room] = ($sc_semaphore[room]||0) + 1; });
+        $ScLoop[room] = setInterval(function(){
+          if( ($ScSemaphore[room] || 0) >= 0 && jQuery('#sc-chatarea-'+scid+':hover').length == 0) {
+            $ScSemaphore[room]--;
+            ScMSG(room, user, 'update', ScAddMsg,
+              undefined , function( data ) { $ScSemaphore[room] = ($ScSemaphore[room]||0) + 1; });
           }
-        }, $sc_period);
+        }, $ScPeriod);
+      }
+      function endinit(){
+        if (coloring){
+          if (!(shstyle && Object.keys($classnames).length)) color(coloring);
+        }
+        if (tuning){
+          if (!(shtune && Object.keys($ScOsc.F).length) && tuning != 't') tune(tuning);
+          if (!$ScOsc.p) unmute();
+        }
+        refresh();
       }
 
-      _sendmsg_(room, user, 'entered', sc_add_msg, undefined, refresh);
+      ScMSG(room, user, 'entered', ScAddMsg, undefined, endinit);
+
     }
-  });
+  }
+  jQuery('body').on('change', 'input.sc-activate', scActivate);
+  jQuery('input.sc-activate').each(scActivate);
 
 });
