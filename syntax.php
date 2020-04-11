@@ -81,7 +81,7 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
         // see if we need to clean up an old chat log
         if( $this->getConf('chatretentiontimer') > 0 ) {
             $room = str_replace(array(' ','.','/',':'),array('','','-','-'),$ID); // need to clean this. remove spaces, remove dots , change slashes to underlines
-            $filename = DOKU_INC.'data/chats/log_'.$room.'.txt';
+            $filename = DOKU_INC.'data/chats/'.$room.'.txt';
             if( file_exists( $filename ) ) {
                 // count lines, see if we are over limit
                 $linecount = 0;
@@ -141,21 +141,12 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
         } else {
             $sharestyle = ''; $sharetune = '';
         };
+        $title = str_replace("\t"," ",isset($data['title'])?$data['title']:'Chat');
+
         $result  = "";
         $result .= "<div id='".$divid."' class='sc-wrap' data-sc='";
-        $result .= $scid."\t".$username."\t".$unmuted."\t".$sharetune."\t".$color."\t".$sharestyle."\t".$fast;
-        $result .= "' data-room='".$id."'";
-        $result .= ">";
-
-        $result .= "<label for='sc-activate-".$scid."'>".(isset($data['title'])?$data['title']:'Chat')."</label>";
-        $result .= "<input id='sc-activate-".$scid."'  class='sc-activate' name='sc-activate-".$scid."' type='checkbox'"; 
-        if (isset($data['unfolded'])) $result .= ' checked="checked"';
-        $result .= "/>";
-
-        $result .= "<div class='sc-chatframe'><div class='sc-chatarea' id='sc-chatarea-".$scid."'></div></div>";
-        $result .= "<form class='sc-messagearea'><label for='sc-send-".$scid."'>Message</label><textarea  class='sc-send' id='sc-send-".$scid."' maxlength='250'></textarea></form>";
-
-        $result .= "</div>";
+        $result .= $fileid."\t".$title."\t".(isset($data['unfolded'])?'':'1')."\t".$scid."\t".$username."\t".$unmuted."\t".$sharetune."\t".$color."\t".$sharestyle."\t".$fast;
+        $result .= "'></div>";
 
         return $result;
     }
