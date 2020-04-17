@@ -5,7 +5,8 @@
 jQuery(document).ready(function($){
   var state = {},  // chat status
     sem = {},      // semaphore
-    users = {},    // users
+    users = {},    // users connected
+    hidden = {},    // users filtering
     lp = {},       // loop for each chat
     period = 5000, // time for update
     osc = {        // monotonic sound generator
@@ -153,6 +154,7 @@ jQuery(document).ready(function($){
 
     var lbl=el(this, 'label', {for:'sc-activate-'+scid}),
       tg=el(this, 'input', {id:scid, type:'checkbox'}, 'sc-activate'),
+      us=el(el(this, 'div', {}), 'ul', {}, 'sc-users'),
       frame=el(this, 'div', {}, 'sc-chatframe'),
       view=el(frame, 'div', {id:scid}, 'sc-chatarea'),
       vsize=el(this, 'div', {}, 'sc-resize'),
@@ -190,7 +192,11 @@ jQuery(document).ready(function($){
         while( msgs.length ) {
           var name = msgs[0].split("\t")[0];
           var content = msgs[0].substr(name.length+1).replace(/\\r/g, '<br/>');
-          if( name == "." ) {
+          if (name == "+" ) {
+            users[content] = 0;
+          } else if(name == "-" ) {
+            delete users[content];
+          } else if(name == "." ) {
             $(view).append( "<p class='sc-info'>"+ content + "</p>");
           } else if (name == '_') {
             $(view).append( "<div class='sc-system'>" + content + "</div>");
@@ -198,16 +204,19 @@ jQuery(document).ready(function($){
             tune(content);
           } else if (name == ':') { // read color infos 
             color(content, 1);
-          } else if (users[name] !== 2) {  // 2 means message is hidden for user
-            users[name] = 1;
+          } else if (!hidden[name]) {
             cls =  clsdef[name] ||( "sc-player-" + name.split(/[^A-Za-z0-9]/).join('') );
             $(view).append("<p class='"+cls+"'><span>"+name+"</span>"+content+"</p>");
             if (osc.p) osc.p(name);
           }
           msgs.shift();
         }
-        scrl()
+        scrl();
       }
+      $(us).empty();
+      Object.keys(users).forEach(function (vv){
+        el(us, 'li', {}, hidden[vv]?'sc-hidden':'').innerText = vv;
+      });
     }
     function scrl(){
       $(frame).animate({scrollTop:view.scrollHeight}, 1000);
@@ -235,13 +244,11 @@ jQuery(document).ready(function($){
                 period=1000;
               } else if (msg == '/clean') {
                 $(view).empty();
-              } else if (msg == '/users') {
-                AddMsg(". "+ Object.keys(users).join(','));
               } else if (msg.startsWith('/hide')) {
                 $('p.sc-player-'+msg.substr(6), view).remove();
-                users[msg.substr(6)]=2; scrl();
+                hidden[msg.substr(6)]=1; scrl();
               } else if (msg.startsWith('/unhide')) {
-                users[msg.substr(6)]=1;
+                hidden[msg.substr(8)]=0;
               } else if (msg.startsWith('/filter')) {
                 $('p', view).removeClass('hidden');
                 var sel=msg.substr(7).split(' ').join('):not(.sc-player-').substr(1);
@@ -274,7 +281,7 @@ jQuery(document).ready(function($){
                 osc.p();
               }
             }
-            input.value = "";
+            input.value = ""; AddMsg();
             return false;
           }
         };

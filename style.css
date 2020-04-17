@@ -21,6 +21,8 @@ label[for^="sc-activate-"] { display: block; text-align:center; width:100%; marg
 .sc-chatarea .sc-system { margin:0; font-size:0.8em }
 .sc-name { position:absolute; top:0; right:0; font: bold 12px "Lucida Grande", Sans-Serif; text-align: right; z-index:1; }   
 .sc-name span { color: #fa9f00; }
+.sc-users { display:flex; }
+.sc-wrap .sc-users li:not(.sc-hidden) { color: #000; }
 .sc-wrap .sc-messagearea { display:flex;}
 .sc-wrap .sc-messagearea * { padding: 0.3em; }
 .sc-send { position:relative; width:100%; resize:vertical; border: 2px solid #999; font: 12px "Lucida Grande", Sans-Serif;}

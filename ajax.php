@@ -96,6 +96,8 @@ if (true) {
 }
 simplechat_db::init();
 
+
+$sc_user = strip_tags(trim($_POST['user']));
 switch( $_POST['cmd'] ){
 case 'send':// got a message from user
   $msg = str_replace( array("\r","\n"), '\r', trim($_POST['msg']) );
@@ -104,11 +106,11 @@ case 'send':// got a message from user
     list($newmsg, $infomsg, $directmsg, $colorstyle, $tune, $break) = plugin_simplechat_parse_cmd($msg, $USERINFO, simplechat_db::class);
     if ($newmsg != "") {
       // store the user and message in tab separated text columns. prevent HTML injection
-      simplechat_db::save_msg(htmlspecialchars($_POST['user'])."\t".htmlspecialchars($newmsg));
+      simplechat_db::save_msg($sc_user."\t".htmlspecialchars($newmsg));
     }
     if( $infomsg != "" ) simplechat_db::save_msg(".\t".$infomsg);
     if( $directmsg != "" ) echo "_\t".$directmsg;
-    if( $colorstyle != "" ) simplechat_db::save_msg(":\t".preg_replace('/\W/', '', $_POST['user'])."\t".$colorstyle);
+    if( $colorstyle != "" ) simplechat_db::save_msg(":\t".preg_replace('/\W/', '', $sc_user)."\t".$colorstyle);
     if( $tune != "" ) simplechat_db::save_msg("#\t".$tune);
   }
   echo simplechat_db::get_msgs($_POST['start']);
@@ -117,11 +119,11 @@ case 'update': // give us lines after previous count, and the new count
   echo simplechat_db::get_msgs($_POST['start']);
   break;
 case 'entered': // someone entered the chat room.
-  simplechat_db::save_msg(".\t".htmlspecialchars($_POST['user'])." entered the chat.");
+  simplechat_db::save_msg("+\t".$sc_user);
   echo simplechat_db::get_msgs($_POST['start']);
   break;
 case 'exited': // someone left the chat room.
-  simplechat_db::save_msg(".\t".htmlspecialchars($_POST['user'])." left the chat.");
+  simplechat_db::save_msg("-\t".$sc_user);
   break;
 
 default: break;

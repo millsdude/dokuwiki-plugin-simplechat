@@ -126,7 +126,7 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
             $username = 'anonymous';
         }
         $fileid = $ID;
-        $divid = 'simplechat';
+        $divid = NULL;
         if (isset($data['id'])) {
             $fileid .= '#'.$data['id'];
             $divid = $data['id'];
@@ -144,7 +144,9 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
         $title = str_replace("\t"," ",isset($data['title'])?$data['title']:'Chat');
 
         $result  = "";
-        $result .= "<div id='".$divid."' class='sc-wrap' data-sc='";
+        $result .= "<div ";
+        if (!is_null($divid)) $result .= "id='".$divid."' ";
+        $result .= "class='sc-wrap' data-sc='";
         $result .= $fileid."\t".$title."\t".(isset($data['unfolded'])?'':'1')."\t".$scid."\t".$username."\t".$unmuted."\t".$sharetune."\t".$color."\t".$sharestyle."\t".$fast;
         $result .= "'></div>";
 
