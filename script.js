@@ -28,7 +28,6 @@ jQuery(document).ready(function($){
    *    user    = current user
    *    cmd     = transaction type (
    *       entered, -> notify arrival and get messages
-   *       exited,  -> notify exit
    *       send,    -> send message (msg) and get new messages
    *       update   -> get new messages
    *       )
@@ -68,14 +67,18 @@ jQuery(document).ready(function($){
     osc.o.connect(osc.g);
     osc.p = function (id) {
       osc.o.frequency.value = osc.F[id] || osc.f;
-      osc.g.gain.setValueCurveAtTime(
-        osc.env.map(function(x){
-          // redefine sound amplitude given frequency
-          return x*(440/osc.o.frequency.value);
-        }),
-        Math.floor(2 + (osc.a.currentTime*10))/10,
-        osc.t/1000
-      );
+      try {
+        osc.g.gain.setValueCurveAtTime(
+          osc.env.map(function(x){
+            // redefine sound amplitude given frequency
+            return x*(440/osc.o.frequency.value);
+          }),
+          Math.floor(2 + (osc.a.currentTime*10))/10,
+          osc.t/1000
+        );
+      } catch(e) {
+        // pass
+      }
     };
     osc.o.start();
   }
@@ -150,7 +153,7 @@ jQuery(document).ready(function($){
    */
   $('.sc-wrap').each(function(){
     // hoping everybody have js ES6
-    var [room, title, fold, scid, user, tuning, shtune, coloring, shstyle, fast]  = $(this).data('sc').split('\t');
+    var [room, title, fold, scid, user, tuning, shtune, coloring, shstyle, nb, fast]  = $(this).data('sc').split('\t');
 
     var lbl=el(this, 'label', {for:'sc-activate-'+scid}),
       tg=el(this, 'input', {id:scid, type:'checkbox'}, 'sc-activate'),
@@ -164,6 +167,8 @@ jQuery(document).ready(function($){
       input=el(msgarea, 'textarea', {maxlength:250, id:scid}, 'sc-send');
     tg.checked = !fold;
     lbl.innerText = title;
+    var lbs=el(lbl, 'span', {});
+    lbs.innerText = ' (' + nb + ')';
     msglbl.innerText = 'Message';
 
     function resize(e){
@@ -186,30 +191,32 @@ jQuery(document).ready(function($){
 
     function AddMsg(data){
       if( data ) {
-        var msgs = data.split("\n");
-        if (msgs.length > 1)
-          state[room] = msgs.pop();
-        while( msgs.length ) {
-          var name = msgs[0].split("\t")[0];
-          var content = msgs[0].substr(name.length+1).replace(/\\r/g, '<br/>');
-          if (name == "+" ) {
-            users[content] = 0;
-          } else if(name == "-" ) {
-            delete users[content];
-          } else if(name == "." ) {
-            $(view).append( "<p class='sc-info'>"+ content + "</p>");
-          } else if (name == '_') {
-            $(view).append( "<div class='sc-system'>" + content + "</div>");
-          } else if (name == '#') { // read tuning
-            tune(content);
-          } else if (name == ':') { // read color infos 
-            color(content, 1);
-          } else if (!hidden[name]) {
-            cls =  clsdef[name] ||( "sc-player-" + name.split(/[^A-Za-z0-9]/).join('') );
-            $(view).append("<p class='"+cls+"'><span>"+name+"</span>"+content+"</p>");
-            if (osc.p) osc.p(name);
+        if (data.startsWith('_')) { // direct messages come alone
+          $(view).append( "<div class='sc-system'>" + data.substr(2) + "</div>");
+        } else {
+          var msgs = data.split("\n");
+          if (msgs.length > 1)
+            state[room] = msgs.pop();
+          while( msgs.length ) {
+            var name = msgs[0].split("\t")[0];
+            var content = msgs[0].substr(name.length+1).replace(/\\r/g, '<br/>');
+            if (name == "+" ) {
+              users[content] = 0;
+            } else if(name == "-" ) {
+              delete users[content];
+            } else if(name == "." ) {
+              $(view).append( "<p class='sc-info'>"+ content + "</p>");
+            } else if (name == '#') { // read tuning
+              tune(content);
+            } else if (name == ':') { // read color infos 
+              color(content, 1);
+            } else if (!hidden[name]) {
+              cls =  clsdef[name] ||( "sc-player-" + name.split(/[^A-Za-z0-9]/).join('') );
+              $(view).append("<p class='"+cls+"'><span>"+name+"</span>"+content+"</p>");
+              if (osc.p) osc.p(name);
+            }
+            msgs.shift();
           }
-          msgs.shift();
         }
         scrl();
       }
@@ -225,13 +232,9 @@ jQuery(document).ready(function($){
     function On(){
       if (tg.checked && state[room] === undefined){
         state[room] = 0;
+        lbs.innerText = '';
 
-        // setup unload to report user leaving chat
-        $(window).unload( function(){
-          Msg(room, user, 'exited');
-        });
         $(tg).on('remove', function(){
-          Msg(room, user, 'exited');
           state[room] = undefined;
           clearInterval(lp[room]);
         });

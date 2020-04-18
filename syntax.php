@@ -143,11 +143,22 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
         };
         $title = str_replace("\t"," ",isset($data['title'])?$data['title']:'Chat');
 
+        // live coding maintenance mode
+        /* $title = 'Chat not usable currently (dev)';*/
+
+        $unfolded = isset($data['unfolded']);
+        $nbusers = 0;
+        if (!$unfolded) {
+            require_once(dirname(__FILE__).'/db.php');
+            $sc_user = strip_tags(trim($username));
+            simplechat_db::init($fileid, $sc_user);
+            $nbusers = simplechat_db::countUsers();
+        }
         $result  = "";
         $result .= "<div ";
         if (!is_null($divid)) $result .= "id='".$divid."' ";
         $result .= "class='sc-wrap' data-sc='";
-        $result .= $fileid."\t".$title."\t".(isset($data['unfolded'])?'':'1')."\t".$scid."\t".$username."\t".$unmuted."\t".$sharetune."\t".$color."\t".$sharestyle."\t".$fast;
+        $result .= $fileid."\t".$title."\t".($unfolded?'':'1')."\t".$scid."\t".$username."\t".$unmuted."\t".$sharetune."\t".$color."\t".$sharestyle."\t".strval($nbusers)."\t".$fast;
         $result .= "'></div>";
 
         return $result;
