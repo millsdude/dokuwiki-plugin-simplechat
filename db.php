@@ -79,9 +79,7 @@ class simplechat_storage_file {
       while(!feof($fh)){
         $line = fgets($fh);
         $userstatus = explode(" ",rtrim($line));
-        if ($curtime > (intval($userstatus[1]) + 5)){
-          self::addMsg('-',$userstatus[0]);
-        } else {
+        if ($curtime <= (intval($userstatus[1]) + 5)){
           $nbusers ++;
         }
       }
@@ -97,7 +95,7 @@ class simplechat_storage_file {
     try {
       $now = new DateTime();
       $curtime= $now->getTimestamp();
-      // check previous users
+      // check connected users
       $fh = fopen(self::$filename_meta, "r");
       $stats = array();
       if( $fh ) {
@@ -118,14 +116,11 @@ class simplechat_storage_file {
         array_push($stats, self::$user.' '.((string) $curtime)."\n");
         if ($newuser) self::addMsg('+', self::$user);
       }
-      $fh = fopen(self::$filename_meta, "w");
-      if( $fh ) {
-        foreach($stats as $l){
-          fwrite($fh, $l);
-        }
-        fclose($fh);
+      $content = implode("",$stats);
+      while (file_put_contents(self::$filename_meta, $content, LOCK_EX) === False) {
+        usleep(200000);
       }
-      // read write, point to start of file
+      // read messages
       $fh = fopen(self::$filename, 'r');
       if( $fh ) {
         while(!feof($fh)){
@@ -137,17 +132,18 @@ class simplechat_storage_file {
         }
         fclose($fh);
       }
+      // write messages
       if (count(self::$newMsgs)>0) {
-        $fh = fopen(self::$filename, "a+");
-        if ($fh){
-          //write new messages
-          foreach(self::$newMsgs as $newmsgline) { 
-            $newmsgline .= "\n";
-            fwrite($fh, $newmsgline);
-            $result .= $newmsgline;
-            $linecount++;
-          }
-          fclose($fh);
+        $content = "";
+        foreach(self::$newMsgs as $newmsgline) { 
+          $newmsgline .= "\n";
+          $content .= $newmsgline;
+          $linecount++;
+        }
+        $result .= $content;
+        
+        while (file_put_contents(self::$filename, $content, FILE_APPEND | LOCK_EX) === False) {
+          usleep(200000);
         }
         self::$newMsgs = array();
       }
