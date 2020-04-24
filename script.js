@@ -155,6 +155,7 @@ jQuery(document).ready(function($){
     // hoping everybody have js ES6
     var [room, title, fold, scid, user, tuning, shtune, coloring, shstyle, nb, fast]  = $(this).data('sc').split('\t');
 
+    var editbtn = $(this).parent().next();
     var lbl=el(this, 'label', {for:'sc-activate-'+scid}),
       tg=el(this, 'input', {id:scid, type:'checkbox'}, 'sc-activate'),
       us=el(el(this, 'div', {}), 'ul', {}, 'sc-users'),
@@ -230,65 +231,67 @@ jQuery(document).ready(function($){
     }
 
     function On(){
-      if (tg.checked && state[room] === undefined){
-        state[room] = 0;
-        lbs.innerText = '';
+      if (tg.checked) {
+        editbtn.hide();
+        if (state[room] === undefined){
+          state[room] = 0;
+          lbs.innerText = '';
 
-        $(tg).on('remove', function(){
-          state[room] = undefined;
-          clearInterval(lp[room]);
-        });
+          $(tg).on('remove', function(){
+            state[room] = undefined;
+            clearInterval(lp[room]);
+          });
 
-        input.onkeypress = function(e) {
-          if(e.which == 13 && !e.shiftKey){
-            var msg = input.value.replace(/^\s+|\s+$/g,'');
-            if( msg.length > 0 ) {
-              if (msg == '/fast') {
-                period=1000;
-              } else if (msg == '/clean') {
-                $(view).empty();
-              } else if (msg.startsWith('/hide')) {
-                $('p.sc-player-'+msg.substr(6), view).remove();
-                hidden[msg.substr(6)]=1; scrl();
-              } else if (msg.startsWith('/unhide')) {
-                hidden[msg.substr(8)]=0;
-              } else if (msg.startsWith('/filter')) {
-                $('p', view).removeClass('hidden');
-                var sel=msg.substr(7).split(' ').join('):not(.sc-player-').substr(1);
-                if (sel) $('p' + sel +')',view).addClass('hidden'); scrl();
-              } else if (msg == '/slow') {
-                period=5000;
-              } else if (msg.startsWith('/resize')) {
-                frame.style.height = msg.substr(6) + "em";
-              } else if (msg == '/unmute') {
-                unmute();
-                osc.p();
-              } else if (osc.p && msg == '/mute') {
-                mute();
-              } else if (!shtune && msg.startsWith('/tune')) {
-                tune(msg.substr(6));
-              } else if (!shstyle && msg.startsWith('/color')) {
-                color(user + ' ' + msg.substr(7), 0);
-              } else if (msg.startsWith('/font ')) {
-                font = msg.substr(6);
-                $('#sc-chatarea-'+scid).css('font-family', font);
-              } else if (msg.startsWith('/fontsize ')) {
-                font = msg.substr(10);
-                $('#sc-chatarea-'+scid).css('font-size', parseInt(font));
-              } else {
-                Msg(room, user, 'send', AddMsg, msg);
-                clearInterval(lp[room]);
-                refresh();
+          input.onkeypress = function(e) {
+            if(e.which == 13 && !e.shiftKey){
+              var msg = input.value.replace(/^\s+|\s+$/g,'');
+              if( msg.length > 0 ) {
+                if (msg == '/fast') {
+                  period=1000;
+                } else if (msg == '/clean') {
+                  $(view).empty();
+                } else if (msg.startsWith('/hide')) {
+                  $('p.sc-player-'+msg.substr(6), view).remove();
+                  hidden[msg.substr(6)]=1; scrl();
+                } else if (msg.startsWith('/unhide')) {
+                  hidden[msg.substr(8)]=0;
+                } else if (msg.startsWith('/filter')) {
+                  $('p', view).removeClass('hidden');
+                  var sel=msg.substr(7).split(' ').join('):not(.sc-player-').substr(1);
+                  if (sel) $('p' + sel +')',view).addClass('hidden'); scrl();
+                } else if (msg == '/slow') {
+                  period=5000;
+                } else if (msg.startsWith('/resize')) {
+                  frame.style.height = msg.substr(6) + "em";
+                } else if (msg == '/unmute') {
+                  unmute();
+                  osc.p();
+                } else if (osc.p && msg == '/mute') {
+                  mute();
+                } else if (!shtune && msg.startsWith('/tune')) {
+                  tune(msg.substr(6));
+                } else if (!shstyle && msg.startsWith('/color')) {
+                  color(user + ' ' + msg.substr(7), 0);
+                } else if (msg.startsWith('/font ')) {
+                  font = msg.substr(6);
+                  $('#sc-chatarea-'+scid).css('font-family', font);
+                } else if (msg.startsWith('/fontsize ')) {
+                  font = msg.substr(10);
+                  $('#sc-chatarea-'+scid).css('font-size', parseInt(font));
+                } else {
+                  Msg(room, user, 'send', AddMsg, msg);
+                  clearInterval(lp[room]);
+                  refresh();
+                }
+                if (osc.p && msg.startsWith('/tune')) {
+                  osc.p();
+                }
               }
-              if (osc.p && msg.startsWith('/tune')) {
-                osc.p();
-              }
+              input.value = ""; AddMsg();
+              return false;
             }
-            input.value = ""; AddMsg();
-            return false;
-          }
-        };
-        var refresh = function(){
+          };
+          var refresh = function(){
             // loop
             lp[room] = setInterval(function(){
               if( (sem[room] || 0) >= 0 && ($('#sc-chatarea-'+scid+':focus').length == 0 || $('#sc-send-'+scid+':focus'))) {
@@ -297,18 +300,18 @@ jQuery(document).ready(function($){
                   undefined , function( data ) { sem[room] = (sem[room]||0) + 1; });
               }
             }, period);
-        };
-        Msg(room, user, 'entered', AddMsg, undefined,
-          function(){  // init chatter and run loop once entered
-            if (coloring && !(shstyle && Object.keys(clsdef).length)) color(coloring);
-            if (tuning) {
-              if (!(shtune && Object.keys(osc.F).length) && tuning != 't') tune(tuning);
-              if (!osc.p) unmute();
-            }
-            refresh();
-          });
-
-      }
+          };
+          Msg(room, user, 'entered', AddMsg, undefined,
+            function(){  // init chatter and run loop once entered
+              if (coloring && !(shstyle && Object.keys(clsdef).length)) color(coloring);
+              if (tuning) {
+                if (!(shtune && Object.keys(osc.F).length) && tuning != 't') tune(tuning);
+                if (!osc.p) unmute();
+              }
+              refresh();
+            });
+        }
+      } else editbtn.show();
     }
     tg.addEventListener('change', On);
     On();
