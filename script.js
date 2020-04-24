@@ -181,13 +181,13 @@ jQuery(document).ready(function($){
     vsize.addEventListener("mousedown", function(e){
       mpos = e.y;
       dom.addEventListener("mousemove", resize, false);
-      $(vsize).addClass('grabbing');
+      // $(vsize).addClass('grabbing'); // useless
       e.preventDefault();
     }, false);
 
     dom.addEventListener("mouseup", function(){
       dom.removeEventListener("mousemove", resize, false);
-      $(vsize).removeClass('grabbing');
+      // $(vsize).removeClass('grabbing'); // useless
     }, false);
 
     function AddMsg(data){

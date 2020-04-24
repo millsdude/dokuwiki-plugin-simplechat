@@ -3,8 +3,7 @@
 .sc-activate:not(:checked) ~ * { overflow:hidden; height:0; padding:0 }
 label[for^="sc-activate-"] { display: block; text-align:center; width:100%; margin:auto; padding:0 }
 .sc-chatframe { border: 1px solid #666; background:white;  margin: 0 1px 0 0; position:relative; height:50vh; overflow-x: hidden; overflow-y:scroll; }
-.sc-resize { height:1.1em; cursor:grab;}
-.sc-resize.grabbing { cursor:grabbing;}
+.sc-resize { height:1.1em; cursor:row-resize;}
 .sc-chatarea { white-space: pre-wrap; padding: 20px; }
 .sc-chatarea .vlam {
 	color: white;
