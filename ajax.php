@@ -26,11 +26,16 @@ if ($_POST['cmd'] == 'send'){
     list($newmsg, $infomsg, $directmsg, $colorstyle, $tune, $break) = plugin_simplechat_parse_cmd($msg, $USERINFO, simplechat_db::class);
     if ($newmsg != "") {
       // store the user and message in tab separated text columns. prevent HTML injection
-      simplechat_db::addMsg($sc_user, htmlspecialchars($newmsg));
+      // exception for iframe
+      if ( startsWith( $msg, "<iframe") ){
+        simplechat_db::addMsg($sc_user, $newmsg);
+      } else {
+        simplechat_db::addMsg($sc_user, htmlspecialchars($newmsg));
+      }
     }
     if( $infomsg != "" ) simplechat_db::addMsg(".", $infomsg);
     if( $colorstyle != "" ) simplechat_db::addMsg(":", preg_replace('/\W/', '', $sc_user).simplechat_db::$sep.$colorstyle);
-    if( $tune != "" ) simplechat_db::addMsg("#", $tune);
+    if( $tune != "" ) simplechat_db::addMsg("#",  preg_replace('/\W/', '', $sc_user).simplechat_db::$sep.$tune);
   }
 }
 $result = simplechat_db::proceed();

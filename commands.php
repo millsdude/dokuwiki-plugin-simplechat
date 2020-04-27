@@ -35,15 +35,11 @@ function plugin_simplechat_parse_cmd($msg, $userinfo, $dbm){
     } elseif ( startsWith( $msg, "/flip") ){
       $coin = array("heads","tails");
       $info = "&laquo;".htmlspecialchars($_POST['user'])." flips a coin. It is ".$coin[rand(0,1)]."&raquo;\n";
-    } elseif ($isadmin && $msg == '/forgetall'){
-      $directmsg = "<p>".$dbm::purge()."</p>";
-    } elseif ($isadmin && $msg == '/sysinfo'){
-      $directmsg = "<p>".$dbm::info()."</p>";
     } elseif ( startsWith( $msg, "/roll") ){
       $dicesides = intval(substr( $msg , 6 )); 
       if( $dicesides < 2 ) { $dicesides = 100; }
       $info = "&laquo;".htmlspecialchars($_POST['user'])." rolls a ".rand(1,$dicesides)." out of ".$dicesides."&raquo;\n";
-    } else {
+    } elseif ( $msg == '/' || $msg == '/help') {
       $directmsg = "<h5>Commands</h5><p>";
       $directmsg .= "/me action - emote an action. (/me smiles)<br>";
       $directmsg .= "/time - display server time.<br>";
@@ -62,10 +58,24 @@ function plugin_simplechat_parse_cmd($msg, $userinfo, $dbm){
       $directmsg .= "/filter [name] [name2...] - if name is set then show only messages written by name<br></p>";
       if ($isadmin) {
         $directmsg .= "<h5>Admin commands</h5><p>";
-        $directmsg .= "/forgetall - remove the content of this chatter<br></p>";
+        $directmsg .= "/forgetall - remove the content of this chatroom<br>";
+        $directmsg .= "/sysinfo   - syteminfos of this chatroom<br>";
+        $directmsg .= "/listrooms - list all chat rooms <br>";
+        $directmsg .= "/debug     - very verbose debug infos <br>";
+        $directmsg .= "</p>";
+      }
+    } elseif ( $isadmin ) {
+      if (startsWith($msg, '/forgetall')){
+        $directmsg = "<p>".$dbm::purge(trim(substr($msg,10)))."</p>";
+      } elseif ($msg == '/sysinfo'){
+        $directmsg = "<p>".$dbm::info()."</p>";
+      } elseif ($msg == '/listrooms'){
+        $directmsg = "<p>".$dbm::listrooms()."</p>";
+      } elseif ($msg == '/debug'){
+        $directmsg = "<pre>".$dbm::debug()."</pre>";
       }
     }
-    $msg = '';
+    $msg='';
   }
   return array($msg, $info, $directmsg, $colorstyle, $tune); 
 }

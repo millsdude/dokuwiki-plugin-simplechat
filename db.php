@@ -23,6 +23,25 @@ class simplechat_storage_file {
     array_push(self::$newMsgs, $name."\t".$content);
   }
 
+  public static function listrooms()
+  {
+    $ret = "all rooms : ".'<br>';
+    $datadir = DOKU_INC.'data/chats/';
+    foreach(scandir($datadir) as $file) {
+      if ($file == '.' || $file == '..') continue;
+      $archive_size = 0;
+      if (is_dir($datadir.$file)) {
+        foreach(glob($datadir.$file.'/*.txt') as $file_archive) {
+          $archive_size += filesize($file_archive);
+        }
+        $ret .= "- ".$file."/ (" . $archive_size . ")<br>";
+      } else {
+        $ret .= "- ".$file." (" . filesize($datadir.$file) . ")<br>";
+      }
+    }
+    return $ret;
+  }
+
   public static function info()
   {
     $ret = "";
@@ -56,16 +75,39 @@ class simplechat_storage_file {
 
   }
 
-  public static function purge()
+  public static function debug()
+  {
+    $result="";
+    $fh = fopen(self::$filename, 'r');
+    if( $fh ) {
+      while(!feof($fh)){
+        $result .=  fgets($fh);
+      }
+      fclose($fh);
+    }
+    return $result;
+  }
+
+  public static function purge($roomname='')
   {
     try {
-      if (is_file(self::$filename)) unlink( self::$filename );
-      if (is_file(self::$filename_meta)) unlink( self::$filename_meta );
-      foreach(glob(str_replace('.txt', '/*.txt',self::$filename)) as $file) {
+      if (strlen($roomname)>0){
+          if (substr($roomname, 0, 2) == '..') return;
+          $room = str_replace(array(' ','.','/',':'),array('','','-','-'),$roomname);
+          $filename = DOKU_INC.'data/chats/'.$room.'.txt';
+          $filename_meta = DOKU_INC.'data/chats/'.$room.'.users';
+      } else {
+          $filename = self::$filename;
+          $filename_meta = self::$filename_meta;
+          $roomname = self::$roomname;
+      }
+      if (is_file(self::$filename)) unlink( $filename );
+      if (is_file(self::$filename_meta)) unlink( $filename_meta );
+      foreach(glob(str_replace('.txt', '/*.txt',$filename)) as $file) {
         unlink( $file );
       }
-      rmdir(str_replace('.txt', '/',self::$filename));
-      return "All file related to ".self::$roomname." are delete";
+      rmdir(str_replace('.txt', '/', $filename));
+      return "All file related to ".$roomname." are delete";
     } catch (Exception $e) {
       return $e->getMessage();
     }
@@ -103,7 +145,7 @@ class simplechat_storage_file {
         while(!feof($fh)){
           $line = fgets($fh);
           if ($line === false) break;
-          $userstatus = explode(" ",rtrim($line));
+          $userstatus = explode("\t",rtrim($line));
           if ($userstatus[0] == self::$user) {
             $newuser = False;
           } elseif ($curtime > (intval($userstatus[1]) + 5)){
@@ -113,7 +155,7 @@ class simplechat_storage_file {
           }
         }
         fclose($fh);
-        array_push($stats, self::$user.' '.((string) $curtime)."\n");
+        array_push($stats, self::$user."\t".((string) $curtime)."\n");
         if ($newuser) self::addMsg('+', self::$user);
       }
       $content = implode("",$stats);

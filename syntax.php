@@ -126,14 +126,16 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
             $username = 'anonymous';
         }
         $fileid = $ID;
-        $divid = NULL;
+        $divid = $scid;
         if (isset($data['id'])) {
             $fileid .= '#'.$data['id'];
             $divid = $data['id'];
         }
-        $unmuted = (isset($data['unmuted']) ? (isset($data['tune']) ? $data['tune']:'t'):'');
-        $color = (isset($data['color']) ? (isset($data['color']) ? $data['color']:''): '');
-        $fast = (isset($data['fast']) ? (isset($data['fast']) ? 't':''):'');
+        $unmuted = (isset($data['unmuted']) ? 't':'');
+        $tune = (isset($data['tune']) ? $data['tune']:'');
+        $color = (isset($data['color']) ?  $data['color']:'');
+        $fast = (isset($data['fast']) ? 't':'');
+        $view_mode = (isset($data['fixed']) ? (($data['fixed'] == 'left') ? '2':'1'):'0');
         if (isset($data['share'])){
             $shareopts = explode(",", $data['share']);
             $sharestyle = in_array('color', $shareopts) ? 't':'';
@@ -158,7 +160,7 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
         $result .= "<div ";
         if (!is_null($divid)) $result .= "id='".$divid."' ";
         $result .= "class='sc-wrap' data-sc='";
-        $result .= $fileid."\t".$title."\t".($unfolded?'':'1')."\t".$scid."\t".$username."\t".$unmuted."\t".$sharetune."\t".$color."\t".$sharestyle."\t".strval($nbusers)."\t".$fast;
+        $result .= $fileid."\t".$title."\t".($unfolded?'':'1')."\t".$scid."\t".$username."\t".$unmuted."\t".$tune."\t".$sharetune."\t".$color."\t".$sharestyle."\t".strval($nbusers)."\t".$view_mode."\t".$fast;
         $result .= "'></div>";
 
         return $result;
