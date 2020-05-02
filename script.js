@@ -2,18 +2,17 @@
  *  Create the chat frame for each div.sc-wrap
  */
 
-jQuery(document).ready(function($){
+jQuery(document).ready(function(){
   var state = {},  // chat status
     sem = {},      // semaphore
-    users = {},    // users connected
-    hidden = {},    // users filtering
     lp = {},       // loop for each chat
-    period = 5000, // time for update
+    period = 5000, // time for update factor x period, factor will increase if no message recieved
+    factor = 1,    // 
     osc = {        // monotonic sound generator
       t:400,       //   duration
       f:329,       //   global frequency
       F:{},        //   per user frequency
-      env : [0,.16,.15,.15,.12,.09,.08,.05,0],  // envelope
+      env : [0,0.16,0.15,0.15,0.12,0.09,0.08,0.05,0],  // envelope
       p: 0
     },             
     clsdef = {},   // css class name for messages by users
@@ -31,6 +30,7 @@ jQuery(document).ready(function($){
    *       entered, -> notify arrival and get messages
    *       send,    -> send message (msg) and get new messages
    *       update   -> get new messages
+   *       remove   -> remove a message
    *       )
    *    cb       = callback function
    *    msg      = the message to send
@@ -39,7 +39,7 @@ jQuery(document).ready(function($){
   function Msg(room, user, cmd, cb, msg, complete){
     if (state[room] === undefined) return;
     sem[room]--;
-    $.ajax(DOKU_BASE + 'lib/plugins/simplechat/ajax.php', {
+    jQuery.ajax(DOKU_BASE + 'lib/plugins/simplechat/ajax.php', {
       method: 'post',
       error: function(err) {
         console.log('ajax.php error : ' + err.status);
@@ -48,7 +48,7 @@ jQuery(document).ready(function($){
         room: room,
         user: user,
         start: state[room],
-        async: (cmd=='send' || cmd=='update') 
+        async: (cmd=='send' || cmd=='update'|| cmd=='remove' )
       },
       success: cb,
       complete: function(data){
@@ -58,34 +58,41 @@ jQuery(document).ready(function($){
     });
   }
 
+  window.SimpleChatDebug = { send: Msg, all: {}, state: state };
   /*
    * unmute the sound generator
    */
   function unmute(){
-    osc.a = new(window.AudioContext || window.webkitAudioContext)();
-    osc.o = osc.a.createOscillator();
-    osc.g = osc.a.createGain();
-    osc.o.type = 'sine';
-    osc.g.gain.value = 0;
-    osc.o.frequency.value = 440;
-    osc.g.connect(osc.a.destination);
-    osc.o.connect(osc.g);
-    osc.p = function (id) {
-      osc.o.frequency.value = osc.F[id] || osc.f;
-      try {
-        osc.g.gain.setValueCurveAtTime(
-          osc.env.map(function(x){
-            // redefine sound amplitude given frequency
-            return x*(440/osc.o.frequency.value);
-          }),
-          Math.floor(2 + (osc.a.currentTime*10))/10,
-          osc.t/1000
-        );
-      } catch(e) {
-        // pass
-      }
-    };
-    osc.o.start();
+    try {
+      // Fix up for prefixing
+      window.AudioContext = window.AudioContext||window.webkitAudioContext;
+      osc.a = new AudioContext();
+      osc.o = osc.a.createOscillator();
+      osc.g = osc.a.createGain();
+      osc.o.type = 'sine';
+      osc.g.gain.value = 0;
+      osc.o.frequency.value = 440;
+      osc.g.connect(osc.a.destination);
+      osc.o.connect(osc.g);
+      osc.p = function (id) {
+        osc.o.frequency.value = osc.F[id] || osc.f;
+        try {
+          osc.g.gain.setValueCurveAtTime(
+            osc.env.map(function(x){
+              // redefine sound amplitude given frequency
+              return x*(440/osc.o.frequency.value);
+            }),
+            Math.floor(2 + (osc.a.currentTime*10))/10,
+            osc.t/1000
+          );
+        } catch(e) {
+          // pass
+        }
+      };
+      osc.o.start();
+    } catch(e) {
+      console.log('Web Audio API is not supported in this browser');
+    }
   }
 
   /*
@@ -124,7 +131,7 @@ jQuery(document).ready(function($){
       var t = vv.replace("\t", " ").split(" "),  // current instruction [username, [color.class|fg bg]]
         c,                    // will store [color fg, color bg]
         css='',               // new css that will be added for username
-        cls='sc-player-'+t[0].split(/[^A-Za-z0-9]/).join(''); // classname pointing user messages
+        cls='sc-user-'+t[0].split(/[^A-Za-z0-9]/).join(''); // classname pointing user messages
       if (!st[cls]) {
         st[cls] = dom.createElement('style');
         dom.head.appendChild(st[cls]);
@@ -138,7 +145,7 @@ jQuery(document).ready(function($){
         c = [t[1],''];
       }
       clsdef[t[0]]=cls+' '+c[1];
-      $('.'+cls).each(function(){
+      jQuery('.'+cls).each(function(){
         this.className = cls + ' ' + c[1];
       });
       if (c[0]) css += "color:"+c[0]+" !important;";
@@ -146,7 +153,22 @@ jQuery(document).ready(function($){
     });
   }
 
+
+  function download(fname, text) {
+    var $a = $el(dom.body, 'a', 0, {
+      href: 'data:,' + encodeURIComponent(text),
+      download:fname
+    }).hide();
+    $a.get(0).click();
+    $a.remove();
+  }
+
+
   /*  create HTML elements faster than jQuery */
+  function $el(p, t, cls, attrs){
+    if (p instanceof jQuery) p = p.get(0);
+    return jQuery(el(p, t, cls, attrs));
+  }
   function el(p, t, cls, attrs){
     var a = dom.createElement(t);
     if (attrs) for (var k in attrs)
@@ -162,54 +184,50 @@ jQuery(document).ready(function($){
    * MAIN PART
    * manage each chat box on the page
    */
-  $('.sc-wrap').each(function(){
+  jQuery('.sc-wrap').each(function(){
     // hoping everybody have js ES6
-    var [room, title, fold, scid, user, snd, tuning, shtune, coloring, shstyle, nb, vm, fast]  = $(this).data('sc').split('\t');
+    var [room, title, fold, scid, user, snd, tuning, shtune, coloring, shstyle, nb, vm, isAdm]  = jQuery(this).data('sc').split('\t');
     sem[room] = 0;
-    var editbtn = $(this).parent().next();
+    var editbtn = jQuery(this).parent().next();
     var
-      vinf = el(this, 'a', 'sc-inf', {href:'#' + this.id}), // a litle popup to find the chatter
-      lbl=el(this, 'label', 0, {for:'sc-activate-'+scid}),
-      tg=el(this, 'input', 'sc-activate', {id:scid, type:'checkbox'}),
+      users = {},    // users connected
+      hidden = {},    // users filtering
+      $vinf = $el(this, 'a', 'sc-inf', {href:'#' + this.id}).text(title), // a litle popup to find the chatter
+      $lbs=$el($el(this, 'label', 0, {for:'sc-activate-'+scid}).text(title), 'span').text(' (' + nb + ')'),
+      $tg=$el(this, 'input', 'sc-activate', {id:scid, type:'checkbox', checked:!fold}),
       mvdiv=el(this, 'div', 'sc-mvl sc-mv'),
       mvdiw=el(this, 'div', 'sc-mvr sc-mv'),
-      mut=el(this, 'div', 'sc-mute'),
-      us=el(el(this, 'div'), 'ul', 'sc-users'),
-      frame=el(this, 'div', 'sc-chatframe'),
-      view=el(frame, 'div', 'sc-chatarea', {id:scid}),
+      $mut=$el(this, 'div', 'sc-mute'),
+      $us=$el(el(this, 'div'), 'ul', 'sc-users'),
+      $frame=$el(this, 'div', 'sc-chatframe'),
+      $view=$el($frame, 'div', 'sc-chatarea', {id:scid}),
       vsize=el(this, 'div', 'sc-resize'),
       mposy, // mouse position
       dy, // mouse move
-      wrap = this,
+      $wrap = jQuery(this),
       msgarea=el(this, 'form', 'sc-messagearea'),
-      msglbl=el(msgarea, 'label', 0,{for:'sc-send-'+scid}),
+      $msglbl=$el(msgarea, 'label', 0,{for:'sc-send-'+scid}).text('Message'),
       input=el(msgarea, 'textarea', 'sc-send', {maxlength:300, id:scid}),
       buffer="";
-    vinf.innerText = title;
-    tg.checked = !fold;
-    lbl.innerText = title;
-    var lbs=el(lbl, 'span');
-    lbs.innerText = ' (' + nb + ')';
-    msglbl.innerText = 'Message';
-    el(mut, 'img', 0, {src:'lib/images/notify.png'});
+    $el($mut, 'img', 0, {src:'lib/images/notify.png'});
 
     function resize(e){
       dy = mposy - e.y;
       mposy = e.y;
-      frame.style.height = (parseInt(getComputedStyle(frame, '').height) - dy) + "px";
+      $frame.height((parseInt($frame.height()) - dy));
     }
     function setViewMode(m){
       vm = m;
-      wrap.style.removeProperty('left');
-      wrap.style.removeProperty('right');
+      $wrap.removeProp('left');
+      $wrap.removeProp('right');
       if (m == 0) {
-        vinf.hidden = false;
-        $(wrap).removeClass('sc-win');
+        $vinf.show();
+        $wrap.removeClass('sc-win');
       } else {
-        vinf.hidden = true;
-        $(wrap).addClass('sc-win');
-        if (m == 1) wrap.style.left = 0;
-        else wrap.style.right = 0;
+        $vinf.hide();
+        $wrap.addClass('sc-win');
+        if (m == 1) $wrap.css('left', 0);
+        else $wrap.css('right', 0);
       }
     }
     vm = parseInt(vm);
@@ -219,15 +237,15 @@ jQuery(document).ready(function($){
 
     var fmut=function(a){
       if (osc.p && a!=2) {
-        $(mut).removeClass('on');
+        $mut.removeClass('on');
         mute(); 
       } else {
-        $(mut).addClass('on');
+        $mut.addClass('on');
         unmute();
         if (a!=1) osc.p();
       }
     };
-    mut.onclick = fmut;
+    $mut.click(fmut);
    
     var psnd = function(){
         var name = this.innerText;
@@ -245,16 +263,20 @@ jQuery(document).ready(function($){
     }, false);
 
     function AddMsg(data){
+      if (lp[room]) clearTimeout(lp[room]);
       if( data ) {
-        var s = 0, sp, name, exp, msgs, content;
+        var s = 0, sp, name, exp, msgs, content, l, newdiv;
         if (data.startsWith('_')) { // direct messages come alone
-          $(view).append( "<div class='sc-system'>" + data.substr(2) + "</div>");
+          $view.append( "<div class='sc-system'>" + data.substr(2) + "</div>");
+        } else if (data.startsWith('/')) { // download a file
+          download(room + '.bak', data.substr(2));
         } else {
           msgs = data.split("\n");
           s = state[room];
           if (msgs.length > 1)
             state[room] = msgs.pop();
           while( msgs.length ) {
+            SimpleChatDebug.all[room].lines.push(msgs[0]);
             name = msgs[0].split("\t")[0];
             content = " " + msgs[0].substr(name.length+1).replace(/\\r/g, '<br/> ');
             exp = /{{([-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])}}/i;
@@ -268,18 +290,44 @@ jQuery(document).ready(function($){
             content = content.replace(/^ /, '').replace('<br/> ', '<br/>');
             if (name == "+" ) {
               users[content] = 0;
+            } else if (name == "x") {
+              jQuery(".sc-wrap [data-l="+content+"]").addClass('sc-del');
+            } else if (name == "X") {
+              jQuery(".sc-wrap .sc-del[data-l="+content+"]").remove();
             } else if(name == "-" ) {
               delete users[content];
             } else if(name == "." ) {
-              $(view).append( "<p class='sc-info'>"+ content + "</p>");
+              $el($view, 'p', 'sc-info').append(content);
               if (s) scrl();
             } else if (name == '#') { // read tuning
               tune(content);
             } else if (name == ':') { // read color infos 
               color(content);
             } else if (!hidden[name]) {
-              cls =  clsdef[name] ||( "sc-player-" + name.split(/[^A-Za-z0-9]/).join('') );
-              $(view).append("<p class='"+cls+"'><span>"+name+"</span>"+content+"</p>");
+              l = content.split("\t")[0];
+              content = content.substr(l.length+1);
+              cls =  'sc-msg ' + (clsdef[name] || ( "sc-user-" + name.split(/[^A-Za-z0-9]/).join('') ));
+              if (l.substr(-1) == '-') {
+                cls += ' sc-del';
+              }
+              $el($el($view, 'div', cls, {'data-l':parseInt(l)}), 'span', 'sc-user')
+                .text(name)
+                .after('<p>' + content +'</p>')
+                .click(function(e){
+                  var $p = jQuery(this).parent(), on; on = $p.hasClass('active');
+                  jQuery('.sc-msg.active', $view).removeClass('active');
+                  jQuery('.sc-msg .sc-btn', $view).remove();
+                  if (!on) {
+                    $p.addClass('active');
+                    if ((user == name && (!$p.hasClass('sc-del'))) || isAdm) {
+                      $el($p, 'button', 'sc-btn sc-btn-rm', {title: 'Delete message'})
+                        .click(function(e){
+                          Msg(room, user, 'remove', AddMsg, $p.data('l') + ($p.hasClass('sc-del')? "-":""));
+                          jQuery(this).remove();
+                        }).text('x');
+                    }
+                  }
+                });
               if (osc.p) osc.p(name);
               if (s) scrl();
             }
@@ -287,28 +335,42 @@ jQuery(document).ready(function($){
           }
         }
         if (!s) scrl();
+        factor=1;
+      } else {
+        factor+=0.1;
       }
-      $(us).empty();
+      refresh();
+      $us.empty();
       Object.keys(users).forEach(function (vv){
-        var u=el(us, 'li', hidden[vv]?'sc-hidden':'');
-        u.innerText = vv;
-        $(u).click(psnd);
+        $el($us, 'li', hidden[vv]?'sc-hidden':'').text(vv).click(psnd);
       });
     }
+    function refresh(){
+      // loop
+      if (lp[room]) clearTimeout(lp[room]);
+      lp[room] = setTimeout(function(){
+        if (!($view.is(':focus') || jQuery(input).is(':focus'))) factor +=0.1;
+        if(sem[room] >= 0) {
+          Msg(room, user, 'update', AddMsg);
+        } else {
+          refresh();
+        }
+      }, period*factor);
+    }
     function scrl(){
-      $(frame).animate({scrollTop:view.scrollHeight}, 1000);
+      $frame.animate({scrollTop:$view.prop('scrollHeight')}, 1000);
     }
 
     function On(){
-      if (tg.checked) {
+      if ($tg.prop('checked')) {
         editbtn.hide();
         if (state[room] === undefined){
           state[room] = 0;
-          lbs.innerText = '';
+          $lbs.text('');
 
-          $(tg).on('remove', function(){
+          $tg.on('remove', function(){
             state[room] = undefined;
-            clearInterval(lp[room]);
+            clearTimeout(lp[room]);
           });
 
           input.onkeypress = function(e) {
@@ -319,22 +381,22 @@ jQuery(document).ready(function($){
                 if (msg == '/fast') {
                   period=1000;
                 } else if (cmd == '/clean') {
-                  $(view).empty();
+                  $view.empty();
                 } else if (cmd == '/hide') {
-                  $('p.sc-player-'+msg.substr(6), view).remove();
+                  jQuery('p.sc-user-'+msg.substr(6), $view).remove();
                   hidden[msg.substr(6)]=1; scrl();
                 } else if (cmd == '/unhide') {
                   hidden[msg.substr(8)]=0;
                 } else if (cmd == '/filter') {
-                  $('p', view).removeClass('hidden');
-                  var sel=msg.substr(7).split(' ').join('):not(.sc-player-').substr(1);
-                  if (sel) $('p' + sel +')',view).addClass('hidden'); scrl();
+                  jQuery('p', $view).removeClass('hidden');
+                  var sel=msg.substr(7).split(' ').join('):not(.sc-user-').substr(1);
+                  if (sel) jQuery('p' + sel +')', $view).addClass('hidden'); scrl();
                 } else if (cmd == '/slow') {
-                  period=5000;
+                  factor=5000;
                 } else if (cmd == '/resize') {
-                  frame.style.height = msg.substr(6) + "em";
+                  $frame.height(msg.substr(6) + "em");
                 } else if (cmd == '/unmute') {
-                  fmut(2)
+                  fmut(2);
                 } else if (osc.p && cmd == '/mute') {
                   fmut(0);
                 } else if ((!shtune && cmd == '/tune') || cmd == '/ttun') {
@@ -343,10 +405,10 @@ jQuery(document).ready(function($){
                   color(user + ' ' + msg.substr(7));
                 } else if (cmd == '/font') {
                   font = msg.substr(6);
-                  $('#sc-chatarea-'+scid).css('font-family', font);
+                  $view.css('font-family', font);
                 } else if (cmd == '/fontsize') {
                   font = msg.substr(10);
-                  $('#sc-chatarea-'+scid).css('font-size', parseInt(font));
+                  $view.css('font-size', parseInt(font));
                 } else {
                   if (buffer) buffer += "\n" + msg;
                   else buffer = msg;
@@ -356,21 +418,11 @@ jQuery(document).ready(function($){
               return false;
             }
           };
-          var refresh = function(){
-            // loop
-            lp[room] = setInterval(function(){
-              if( sem[room] >= 0 && ($('#sc-chatarea-'+scid+':focus').length == 0 || $('#sc-send-'+scid+':focus'))) {
-                Msg(room, user, 'update', AddMsg);
-              }
-            }, period);
-          };
           setInterval(function(){
             // loop for sending messages
             if (buffer && sem[room] >= 0){
               Msg(room, user, 'send', AddMsg, buffer);
               buffer = "";
-              clearInterval(lp[room]);
-              refresh();
             }
           }, 1000);
           Msg(room, user, 'entered', AddMsg, undefined,
@@ -378,13 +430,12 @@ jQuery(document).ready(function($){
               if (coloring && !(shstyle && Object.keys(clsdef).length)) color(coloring);
               if (tuning) tune(tuning);
               if (snd) fmut(1);
-              refresh();
             });
         }
       } else editbtn.show();
     }
-    tg.addEventListener('change', On);
+    window.SimpleChatDebug.all[room] = {add:AddMsg, scrl: scrl, osc: osc, lines:[]};
+    $tg.bind('change', On);
     On();
   });
-
 });

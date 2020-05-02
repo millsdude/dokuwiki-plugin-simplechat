@@ -19,29 +19,43 @@ $sc_user = strip_tags(trim($_POST['user']));
 $directmsg = "";
 
 simplechat_db::init($_POST['room'], $sc_user, $_POST['start']);
-if ($_POST['cmd'] == 'send'){
-  $msg = str_replace( array("\r","\n"), '\r', trim($_POST['msg']) );
-  if( strlen($msg) > 0 ) {
-    global $USERINFO;
-    list($newmsg, $infomsg, $directmsg, $colorstyle, $tune, $break) = plugin_simplechat_parse_cmd($msg, $USERINFO, simplechat_db::class);
-    if ($newmsg != "") {
-      // store the user and message in tab separated text columns. prevent HTML injection
-      // exception for iframe
-      if ( startsWith( $msg, "<iframe") ){
-        simplechat_db::addMsg($sc_user, $newmsg);
-      } else {
-        simplechat_db::addMsg($sc_user, htmlspecialchars($newmsg));
-      }
-    }
-    if( $infomsg != "" ) simplechat_db::addMsg(".", $infomsg);
-    if( $colorstyle != "" ) simplechat_db::addMsg(":", preg_replace('/\W/', '', $sc_user).simplechat_db::$sep.$colorstyle);
-    if( $tune != "" ) simplechat_db::addMsg("#",  preg_replace('/\W/', '', $sc_user).simplechat_db::$sep.$tune);
+global $USERINFO;
+/*$username = $USERINFO['name'];*/
+/*$scuser = strip_tags(trim($username));*/
+$isadmin = in_array('admin', $USERINFO['grps']);
+if ($_POST['cmd'] == 'remove'){
+  $linedesc = $_POST['msg'];
+  if ($isadmin && substr($linedesc, -1) == '-') {
+    simplechat_db::dropMsg($sc_user, intval($linedesc));
+  } else {
+    simplechat_db::requestDropMsg($sc_user, intval($linedesc));
   }
-}
-$result = simplechat_db::proceed();
-if( $directmsg != "" ) {
-  echo "_".simplechat_db::$sep.$directmsg;
 } else {
-  echo $result;
+  if ($_POST['cmd'] == 'send'){
+    $msg = str_replace( array("\r","\n"), '\r', trim($_POST['msg']) );
+    if( strlen($msg) > 0 ) {
+      list($newmsg, $infomsg, $directmsg, $colorstyle, $tune, $filedata) = plugin_simplechat_parse_cmd($msg, $USERINFO, $isadmin, simplechat_db::class);
+      if ($newmsg != "") {
+        // store the user and message in tab separated text columns. prevent HTML injection
+        // exception for iframe
+        if ( startsWith( $msg, "<iframe") ){
+          simplechat_db::addMsg($sc_user, $newmsg, True); // with line number
+        } else {
+          simplechat_db::addMsg($sc_user, htmlspecialchars($newmsg), True); // with line number
+        }
+      }
+      if( $infomsg != "" ) simplechat_db::addMsg(".", $infomsg);
+      if( $colorstyle != "" ) simplechat_db::addMsg(":", preg_replace('/\W/', '', $sc_user).simplechat_db::$sep.$colorstyle);
+      if( $tune != "" ) simplechat_db::addMsg("#",  preg_replace('/\W/', '', $sc_user).simplechat_db::$sep.$tune);
+    }
+  }
+  $result = simplechat_db::proceed();
+  if( $directmsg != "" ) {
+    echo "_".simplechat_db::$sep.$directmsg;
+  } elseif ( $filedata ) {
+    echo "/".simplechat_db::$sep.$filedata;
+  } else {
+    echo $result;
+  }
 }
 ?>

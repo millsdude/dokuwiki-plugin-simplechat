@@ -117,7 +117,7 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
     }
 
     private function chatroomform($data) {
-        // e.g. {{simplechat>unfolded|fast|id=1|share=color,tune|title=Chat|unmuted|color=user1 red.vlam,user2 blue|tune=329,user1 440,user2 326}}
+        // e.g. {{simplechat>unfolded|id=1|share=color,tune|title=Chat|unmuted|color=user1 red.vlam,user2 blue|tune=329,user1 440,user2 326}}
         global $USERINFO, $ID;
         $scid = bin2hex(random_bytes(8));
         if (isset($USERINFO['name']) || ($this->getConf('showanonymousip') == 1)) {
@@ -134,8 +134,8 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
         $unmuted = (isset($data['unmuted']) ? 't':'');
         $tune = (isset($data['tune']) ? $data['tune']:'');
         $color = (isset($data['color']) ?  $data['color']:'');
-        $fast = (isset($data['fast']) ? 't':'');
         $view_mode = (isset($data['fixed']) ? (($data['fixed'] == 'left') ? '2':'1'):'0');
+        $isadmin = in_array('admin', $USERINFO['grps']) ? 't' : '';
         if (isset($data['share'])){
             $shareopts = explode(",", $data['share']);
             $sharestyle = in_array('color', $shareopts) ? 't':'';
@@ -150,17 +150,18 @@ class syntax_plugin_simplechat extends DokuWiki_Syntax_Plugin {
 
         $unfolded = isset($data['unfolded']);
         $nbusers = 0;
+        require_once(dirname(__FILE__).'/db.php');
+        $sc_user = strip_tags(trim($username));
+        simplechat_db::init($fileid, $sc_user);
+        simplechat_db::gc();
         if (!$unfolded) {
-            require_once(dirname(__FILE__).'/db.php');
-            $sc_user = strip_tags(trim($username));
-            simplechat_db::init($fileid, $sc_user);
             $nbusers = simplechat_db::countUsers();
         }
         $result  = "";
         $result .= "<div ";
         if (!is_null($divid)) $result .= "id='".$divid."' ";
         $result .= "class='sc-wrap' data-sc='";
-        $result .= $fileid."\t".$title."\t".($unfolded?'':'1')."\t".$scid."\t".$username."\t".$unmuted."\t".$tune."\t".$sharetune."\t".$color."\t".$sharestyle."\t".strval($nbusers)."\t".$view_mode."\t".$fast;
+        $result .= $fileid."\t".$title."\t".($unfolded?'':'1')."\t".$scid."\t".$username."\t".$unmuted."\t".$tune."\t".$sharetune."\t".$color."\t".$sharestyle."\t".strval($nbusers)."\t".$view_mode."\t".$isadmin;
         $result .= "'></div>";
 
         return $result;

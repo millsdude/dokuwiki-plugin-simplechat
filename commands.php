@@ -10,16 +10,16 @@ function startsWith($haystack, $needle)
  * 
  * @param string $msg          received msg
  * @param string $userinfo     info about current user
+ * @param string $isadmin      is current user admin ?
  * @param string $db           static class db manager
  * 
  * @return array (unparsed msg, info msg, direct msg)
  */
-function plugin_simplechat_parse_cmd($msg, $userinfo, $dbm){
+function plugin_simplechat_parse_cmd($msg, $userinfo, $isadmin, $dbm){
   $info = '';
   $directmsg = '';
   $colorstyle = '';
   $tune = '';
-  $isadmin = in_array('admin', $userinfo['grps']);
   if( startsWith( $msg, "/") ) {
     if( startsWith( $msg, "/me ") ) {
       $info = "&laquo;".htmlspecialchars($_POST['user'])." ".htmlspecialchars( substr( $msg , 4) )."&raquo;\n";
@@ -61,7 +61,7 @@ function plugin_simplechat_parse_cmd($msg, $userinfo, $dbm){
         $directmsg .= "/forgetall - remove the content of this chatroom<br>";
         $directmsg .= "/sysinfo   - syteminfos of this chatroom<br>";
         $directmsg .= "/listrooms - list all chat rooms <br>";
-        $directmsg .= "/debug     - very verbose debug infos <br>";
+        $directmsg .= "/getbackup - get the backup of the chat in a file<br>";
         $directmsg .= "</p>";
       }
     } elseif ( $isadmin ) {
@@ -71,13 +71,13 @@ function plugin_simplechat_parse_cmd($msg, $userinfo, $dbm){
         $directmsg = "<p>".$dbm::info()."</p>";
       } elseif ($msg == '/listrooms'){
         $directmsg = "<p>".$dbm::listrooms()."</p>";
-      } elseif ($msg == '/debug'){
-        $directmsg = "<pre>".$dbm::debug()."</pre>";
+      } elseif ($msg == '/getbackup'){
+        $file = $dbm::dump();
       }
     }
     $msg='';
   }
-  return array($msg, $info, $directmsg, $colorstyle, $tune); 
+  return array($msg, $info, $directmsg, $colorstyle, $tune, $file); 
 }
 
 ?>

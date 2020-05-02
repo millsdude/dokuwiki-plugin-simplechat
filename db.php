@@ -19,10 +19,183 @@ class simplechat_storage_file {
     self::$user = $user;
   }
 
-  public static function addMsg($name, $content){
-    array_push(self::$newMsgs, $name."\t".$content);
+  public static function addMsg($name, $content, $withid=NULL){
+    array_push(self::$newMsgs, array($name, $content, $withid));
   }
 
+  public static function editMsgs($ids, $func){
+    sort($ids);
+    $content = "";
+    $fh = fopen(self::$filename, 'r');
+    if( $fh ) {
+      $linecount=0;
+      while(!feof($fh)){
+        $line = fgets($fh);
+        if (!empty($ids) && $linecount == $ids[0]) {
+          array_shift($ids);
+          $content .= $func($line);
+        } else {
+          $content .= $line;
+        }
+        $linecount++;
+      }
+      fclose($fh);
+    }
+    while (file_put_contents(self::$filename, $content, LOCK_EX) === False) {
+      usleep(200000);
+    }
+  }
+
+  private static function getUselessLines(){
+    // get obsolete users info to remove
+    $users = array();
+    $fh = fopen(self::$filename, 'r');
+    if( $fh ) {
+      $linecount=0;
+      while(!feof($fh)){
+        $line = fgets($fh);
+        if ($line != "\n") { 
+          $s = substr($line, 0, 1);
+          if ($s == '+' || $s == '-')  {
+            $u = substr(rtrim($line), 2);
+            if (array_key_exists($u, $users)) {
+              array_push($users[$u], $linecount);
+            } else {
+              $users[$u] = array($linecount);
+            }
+          }
+        }
+        $linecount++;
+      }
+      fclose($fh);
+    }
+    $toremove=array();
+    foreach ($users as $u => $lines) {
+      array_pop($lines);
+      if (count($lines) > 0) {
+        array_shift($lines);
+      }
+      $toremove += $lines;
+    }
+    return $toremove;
+  }
+
+  public static function gc(){
+    $toremove=self::getUselessLines();
+    self::editMsgs($toremove, function($l){return "\n";});
+  }
+
+  public static function requestDropMsg($name, $id){
+    $sed = function ($l) {
+      $t = explode(self::$sep, $l);
+      $t[1] .= '-';
+      return implode(self::$sep, $t);
+    };
+    self::editMsgs(array($id), $sed);
+    echo 'x'.self::$sep.$id;
+  }
+
+  public static function dropMsg($name, $id){
+    // empty useless lines 
+    $toremove=self::getUselessLines();
+    array_push($toremove, $id);
+    self::editMsgs($toremove, function($l){return "\n";});
+    echo 'X'.self::$sep.$id;
+  }
+
+  public static function getUsers(){
+    $users = array();
+    $fh = fopen(self::$filename_meta, "r" );
+    $curtime= (new DateTime())->getTimestamp();
+    if( $fh ) {
+      while(!feof($fh)){
+        $line = fgets($fh);
+        $userstatus = explode(self::$sep,rtrim($line));
+        if ($curtime <= (intval($userstatus[1]) + 10)){
+          array_push($users, $userstatus[0]);
+        }
+      }
+      fclose($fh);
+    }
+    return $users;
+  }
+
+  public static function countUsers(){
+    return count(self::getUsers());
+  }
+
+  public static function proceed(){
+    if (is_null(self::$user)) return;
+    $linecount = 0;
+    $result = "";
+    try {
+      $now = new DateTime();
+      $curtime= $now->getTimestamp();
+      // check connected users
+      $fh = fopen(self::$filename_meta, "r");
+      $stats = array();
+      if( $fh ) {
+        $newuser = True;
+        while(!feof($fh)){
+          $line = fgets($fh);
+          if ($line === false) break;
+          $userstatus = explode(self::$sep,rtrim($line));
+          if ($userstatus[0] == self::$user) {
+            $newuser = False;
+          } elseif ($curtime > (intval($userstatus[1]) + 5)){
+            self::addMsg('-',$userstatus[0]);
+          } else {
+            array_push($stats, $line);
+          }
+        }
+        fclose($fh);
+        array_push($stats, self::$user."\t".((string) $curtime)."\n");
+        if ($newuser) self::addMsg('+', self::$user);
+      }
+      $content = implode("",$stats);
+      while (file_put_contents(self::$filename_meta, $content, LOCK_EX) === False) {
+        usleep(200000);
+      }
+      // read messages
+      $fh = fopen(self::$filename, 'r');
+      if( $fh ) {
+        while(!feof($fh)){
+          $line = fgets($fh);
+          if( $linecount >= self::$startidx && $line != "\n") {
+            $result .=  $line;
+          }
+          $linecount++;
+        }
+        fclose($fh);
+      }
+      // write messages
+      if (count(self::$newMsgs)>0) {
+        $content = "";
+        foreach(self::$newMsgs as list($name, $msgcontent, $withid)) { 
+          $msgcontent .= "\n";
+          $content .= $withid ? $name.self::$sep.($linecount-1).self::$sep.$msgcontent : $name.self::$sep.$msgcontent;
+          $linecount++;
+        }
+        $result .= $content;
+        
+        while (file_put_contents(self::$filename, $content, FILE_APPEND | LOCK_EX) === False) {
+          usleep(200000);
+        }
+        self::$newMsgs = array();
+      }
+      // last line in response is the new current count
+      if( self::$startidx > $linecount ) {
+        // file was reset, start the client at the beginning
+        $linecount = 0;
+      }
+      if (strlen($result)) $result .= (string)($linecount-1);
+    } catch (Exception $e) {
+      $result = $e->getMessage()."\n0"; 
+    }
+    return $result;
+  }
+
+  /*** debugging functions ***/
   public static function listrooms()
   {
     $ret = "all rooms : ".'<br>';
@@ -75,7 +248,7 @@ class simplechat_storage_file {
 
   }
 
-  public static function debug()
+  public static function dump()
   {
     $result="";
     $fh = fopen(self::$filename, 'r');
@@ -112,94 +285,7 @@ class simplechat_storage_file {
       return $e->getMessage();
     }
   }
-
-  public static function countUsers(){
-    $nbusers = 0;
-    $fh = fopen(self::$filename_meta, "r" );
-    $curtime= (new DateTime())->getTimestamp();
-    if( $fh ) {
-      while(!feof($fh)){
-        $line = fgets($fh);
-        $userstatus = explode(" ",rtrim($line));
-        if ($curtime <= (intval($userstatus[1]) + 5)){
-          $nbusers ++;
-        }
-      }
-      fclose($fh);
-    }
-    return $nbusers;
-  }
-
-  public static function proceed(){
-    if (is_null(self::$user)) return;
-    $linecount = 0;
-    $result = "";
-    try {
-      $now = new DateTime();
-      $curtime= $now->getTimestamp();
-      // check connected users
-      $fh = fopen(self::$filename_meta, "r");
-      $stats = array();
-      if( $fh ) {
-        $newuser = True;
-        while(!feof($fh)){
-          $line = fgets($fh);
-          if ($line === false) break;
-          $userstatus = explode("\t",rtrim($line));
-          if ($userstatus[0] == self::$user) {
-            $newuser = False;
-          } elseif ($curtime > (intval($userstatus[1]) + 5)){
-            self::addMsg('-',$userstatus[0]);
-          } else {
-            array_push($stats, $line);
-          }
-        }
-        fclose($fh);
-        array_push($stats, self::$user."\t".((string) $curtime)."\n");
-        if ($newuser) self::addMsg('+', self::$user);
-      }
-      $content = implode("",$stats);
-      while (file_put_contents(self::$filename_meta, $content, LOCK_EX) === False) {
-        usleep(200000);
-      }
-      // read messages
-      $fh = fopen(self::$filename, 'r');
-      if( $fh ) {
-        while(!feof($fh)){
-          $line = fgets($fh);
-          if( $linecount >= self::$startidx ) {
-            $result .=  $line;
-          }
-          $linecount++;
-        }
-        fclose($fh);
-      }
-      // write messages
-      if (count(self::$newMsgs)>0) {
-        $content = "";
-        foreach(self::$newMsgs as $newmsgline) { 
-          $newmsgline .= "\n";
-          $content .= $newmsgline;
-          $linecount++;
-        }
-        $result .= $content;
-        
-        while (file_put_contents(self::$filename, $content, FILE_APPEND | LOCK_EX) === False) {
-          usleep(200000);
-        }
-        self::$newMsgs = array();
-      }
-      // last line in response is the new current count
-      if( self::$startidx > $linecount ) {
-        // file was reset, start the client at the beginning
-        $linecount = 0;
-      }
-      if (strlen($result)) $result .= (string)($linecount-1);
-    } catch (Exception $e) {
-      $result = $e->getMessage()."\n0"; 
-    }
-    return $result;
-  }
+  /*** /debugging functions ***/
 }
 
 class simplechat_db extends simplechat_storage_file {};
