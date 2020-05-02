@@ -17,6 +17,7 @@ label[for^="sc-activate-"] { display: block; text-align:center; width:70%; backg
 .sc-resize { height:1.1em; cursor:row-resize;}
 /* .sc-chatarea { white-space: pre-wrap; padding: 20px; } */
 .sc-chatarea { white-space: pre-wrap; }
+.sc-chatarea h5 { margin-bottom:0.1em; }
 .sc-chatarea .vlam {
 	color: white;
 	-webkit-text-stroke: 1px black;
@@ -41,7 +42,6 @@ label[for^="sc-activate-"] { display: block; text-align:center; width:70%; backg
  */
 .sc-users { display:flex; margin:0; flex-wrap:wrap;}
 .sc-users li { padding:0; }
-.sc-wrap .sc-users li:not(.sc-hidden) { color: #000; }
 .sc-wrap .sc-messagearea { display:flex;}
 .sc-wrap .sc-messagearea * { padding: 0.3em; }
 .dokuwiki .sc-send { position:relative; width:100% !important; resize:vertical; border: 2px solid #999; font: 12px "Lucida Grande", Sans-Serif;}

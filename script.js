@@ -58,7 +58,7 @@ jQuery(document).ready(function(){
     });
   }
 
-  window.SimpleChatDebug = { send: Msg, all: {}, state: state };
+  window.SimpleChat = { send: Msg, all: {}, state: state };
   /*
    * unmute the sound generator
    */
@@ -122,6 +122,10 @@ jQuery(document).ready(function(){
     console.log(osc.F);
   }
 
+  function getUserClass(v){
+     return 'sc-user-'+v.split(/[^A-Za-z0-9]/).join(''); // classname pointing user messages
+  }
+
   /*
    * setup the color
    *    v = user1 fg bg, user2 fg.class
@@ -131,7 +135,7 @@ jQuery(document).ready(function(){
       var t = vv.replace("\t", " ").split(" "),  // current instruction [username, [color.class|fg bg]]
         c,                    // will store [color fg, color bg]
         css='',               // new css that will be added for username
-        cls='sc-user-'+t[0].split(/[^A-Za-z0-9]/).join(''); // classname pointing user messages
+        cls=getUserClass(t[0]); // classname pointing user messages
       if (!st[cls]) {
         st[cls] = dom.createElement('style');
         dom.head.appendChild(st[cls]);
@@ -145,11 +149,11 @@ jQuery(document).ready(function(){
         c = [t[1],''];
       }
       clsdef[t[0]]=cls+' '+c[1];
-      jQuery('.'+cls).each(function(){
+      jQuery('.sc-msg.'+cls).each(function(){
         this.className = cls + ' ' + c[1];
       });
       if (c[0]) css += "color:"+c[0]+" !important;";
-      st[cls].innerHTML='.'+cls+"{"+css+"}";
+      st[cls].innerHTML='.sc-msg.'+cls+"{"+css+"}";
     });
   }
 
@@ -191,7 +195,6 @@ jQuery(document).ready(function(){
     var editbtn = jQuery(this).parent().next();
     var
       users = {},    // users connected
-      hidden = {},    // users filtering
       $vinf = $el(this, 'a', 'sc-inf', {href:'#' + this.id}).text(title), // a litle popup to find the chatter
       $lbs=$el($el(this, 'label', 0, {for:'sc-activate-'+scid}).text(title), 'span').text(' (' + nb + ')'),
       $tg=$el(this, 'input', 'sc-activate', {id:scid, type:'checkbox', checked:!fold}),
@@ -264,6 +267,7 @@ jQuery(document).ready(function(){
 
     function AddMsg(data){
       if (lp[room]) clearTimeout(lp[room]);
+      var from = {};
       if( data ) {
         var s = 0, sp, name, exp, msgs, content, l, newdiv;
         if (data.startsWith('_')) { // direct messages come alone
@@ -276,7 +280,7 @@ jQuery(document).ready(function(){
           if (msgs.length > 1)
             state[room] = msgs.pop();
           while( msgs.length ) {
-            SimpleChatDebug.all[room].lines.push(msgs[0]);
+            SimpleChat.all[room].lines.push(msgs[0]);
             name = msgs[0].split("\t")[0];
             content = " " + msgs[0].substr(name.length+1).replace(/\\r/g, '<br/> ');
             exp = /{{([-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])}}/i;
@@ -303,10 +307,11 @@ jQuery(document).ready(function(){
               tune(content);
             } else if (name == ':') { // read color infos 
               color(content);
-            } else if (!hidden[name]) {
+            } else {
+              if (s) from[name] = 1;
               l = content.split("\t")[0];
               content = content.substr(l.length+1);
-              cls =  'sc-msg ' + (clsdef[name] || ( "sc-user-" + name.split(/[^A-Za-z0-9]/).join('') ));
+              cls =  'sc-msg ' + (clsdef[name] || getUserClass(name));
               if (l.substr(-1) == '-') {
                 cls += ' sc-del';
               }
@@ -342,9 +347,17 @@ jQuery(document).ready(function(){
       refresh();
       $us.empty();
       Object.keys(users).forEach(function (vv){
-        $el($us, 'li', hidden[vv]?'sc-hidden':'').text(vv).click(psnd);
+        $el(
+          $el($us, 'li', getUserClass(vv))
+          .click(psnd)
+          .css('color', from[vv] ? '#000' : '#999'),
+          'span').text(vv).css('color', '#000');
       });
     }
+    jQuery(input).focusin(function(){
+      factor = 1;
+      refresh();
+    });
     function refresh(){
       // loop
       if (lp[room]) clearTimeout(lp[room]);
@@ -378,21 +391,14 @@ jQuery(document).ready(function(){
               var msg = input.value.replace(/^\s+|\s+$/g,'');
               if( msg.length > 0 ) {
                 var cmd = msg.split(' ')[0];
-                if (msg == '/fast') {
-                  period=1000;
-                } else if (cmd == '/clean') {
+                if (cmd == '/clean') {
                   $view.empty();
-                } else if (cmd == '/hide') {
-                  jQuery('p.sc-user-'+msg.substr(6), $view).remove();
-                  hidden[msg.substr(6)]=1; scrl();
-                } else if (cmd == '/unhide') {
-                  hidden[msg.substr(8)]=0;
+                } else if (cmd == '/freeze') {
+                  sem[room] = -999;
                 } else if (cmd == '/filter') {
-                  jQuery('p', $view).removeClass('hidden');
+                  jQuery('.sc-msg', $view).removeClass('hidden');
                   var sel=msg.substr(7).split(' ').join('):not(.sc-user-').substr(1);
-                  if (sel) jQuery('p' + sel +')', $view).addClass('hidden'); scrl();
-                } else if (cmd == '/slow') {
-                  factor=5000;
+                  if (sel) jQuery('.sc-msg' + sel +')', $view).addClass('hidden'); scrl();
                 } else if (cmd == '/resize') {
                   $frame.height(msg.substr(6) + "em");
                 } else if (cmd == '/unmute') {
@@ -434,7 +440,7 @@ jQuery(document).ready(function(){
         }
       } else editbtn.show();
     }
-    window.SimpleChatDebug.all[room] = {add:AddMsg, scrl: scrl, osc: osc, lines:[]};
+    window.SimpleChat.all[room] = {add:AddMsg, scrl: scrl, osc: osc, lines:[]};
     $tg.bind('change', On);
     On();
   });
