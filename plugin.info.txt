@@ -1,0 +1,7 @@
+base   simplechat
+author Matthew Mills & Luffah
+email  contact@luffah.xyz
+date   2020-04-01
+name   simplechat plugin
+desc   Provides simple chat window using ajax
+url    http://github.com/luffah/dokuwiki/plugin-simplechat
